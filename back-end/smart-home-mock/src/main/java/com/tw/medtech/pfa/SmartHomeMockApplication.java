@@ -1,4 +1,4 @@
-package com.tw.medtech.pfa.smart_home_mock;
+package com.tw.medtech.pfa;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
