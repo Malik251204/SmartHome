@@ -24,4 +24,7 @@ public abstract class HomeComponent {
     @Column(nullable = false)
     private Double unit;
 
+    @ManyToOne
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
 }
