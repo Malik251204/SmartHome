@@ -11,10 +11,10 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class Sensor extends HomeComponent {
 
-    @Column(nullable = false)
+    @Column
     private String type;   // e.g. "TEMPERATURE", "MOTION", "LIGHT"
 
-    @Column(nullable = false)
+    @Column
     private String status;  // e.g. "ACTIVE", "INACTIVE"
 
     @Column(length = 2000)

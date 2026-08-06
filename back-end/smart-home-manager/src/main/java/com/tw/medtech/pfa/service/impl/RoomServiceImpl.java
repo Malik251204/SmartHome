@@ -12,18 +12,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class RoomServiceImpl implements RoomService {
 
     private final RoomRepository roomRepository;
+    private final RoomMapper roomMapper;
 
     @Override
     @Transactional(readOnly = true)
     public List<RoomDto> getAllRooms() {
         return roomRepository.findAll().stream()
-                .map(RoomMapper::mapToDto)
+                .map(roomMapper::mapToDto)
                 .collect(Collectors.toList());
     }
 
@@ -32,6 +32,6 @@ public class RoomServiceImpl implements RoomService {
     public RoomDto getRoomById(Long id) {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found with id: " + id));
-        return RoomMapper.mapToDto(room);
+        return roomMapper.mapToDto(room);
     }
 }

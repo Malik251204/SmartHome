@@ -1,5 +1,7 @@
 package com.tw.medtech.pfa.config;
 
+import com.tw.medtech.pfa.dao.connectors.SensorClient;
+import com.tw.medtech.pfa.dao.connectors.dto.MockSensorDto;
 import com.tw.medtech.pfa.dao.repository.DeviceRepository;
 import com.tw.medtech.pfa.dao.repository.RoomRepository;
 import com.tw.medtech.pfa.dao.repository.UserRepository;
@@ -7,6 +9,7 @@ import com.tw.medtech.pfa.model.Device;
 import com.tw.medtech.pfa.model.Room;
 import com.tw.medtech.pfa.model.User;
 import com.tw.medtech.pfa.model.enums.DeviceStatus;
+import com.tw.medtech.pfa.model.enums.DeviceType;
 import com.tw.medtech.pfa.model.enums.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
@@ -22,6 +25,7 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
     private final DeviceRepository deviceRepository;
+    private final SensorClient sensorClient;
 
     @Override
     @Transactional
@@ -48,12 +52,25 @@ public class DataSeeder implements CommandLineRunner {
 
         roomRepository.saveAll(List.of(livingRoom, bedroom, kitchen));
 
-        Device livingRoomLight = Device.builder()
-                .name("Living Room Light").unit(1.0).status(DeviceStatus.ON).room(livingRoom).build();
-        Device bedroomThermostat = Device.builder()
-                .name("Bedroom Thermostat").unit(21.5).status(DeviceStatus.OFF).room(bedroom).build();
-        Device kitchenPlug = Device.builder()
-                .name("Kitchen Smart Plug").unit(1.0).status(DeviceStatus.ON).room(kitchen).build();
-        deviceRepository.saveAll(List.of(livingRoomLight, bedroomThermostat, kitchenPlug));
+        Device livingRoomAc = Device.builder()
+                .name("Living Room AC").unit(1.0).type(DeviceType.AC).status(DeviceStatus.ON).room(livingRoom).build();
+        Device bedroomBulb = Device.builder()
+                .name("Bedroom Bulb").unit(1.0).type(DeviceType.LIGHT_BULB).status(DeviceStatus.OFF).room(bedroom).build();
+        Device kitchenCurtains = Device.builder()
+                .name("Kitchen Curtains").unit(1.0).type(DeviceType.CURTAINS).status(DeviceStatus.ON).room(kitchen).build();
+        deviceRepository.saveAll(List.of(livingRoomAc, bedroomBulb, kitchenCurtains));
+
+        // Create sensors in the mock backend, capture their IDs, link to rooms
+        seedSensorForRoom(livingRoom, "Living Room AC Sensor", "AC");
+        seedSensorForRoom(bedroom, "Bedroom Bulb Sensor", "LIGHT_BULB");
+        seedSensorForRoom(kitchen, "Kitchen Curtains Sensor", "CURTAINS");
+
+        roomRepository.saveAll(List.of(livingRoom, bedroom, kitchen));
+    }
+
+    private void seedSensorForRoom(Room room, String name, String type) {
+        MockSensorDto toCreate = new MockSensorDto(null, name, type, "1.0", "ON", "{}");
+        MockSensorDto created = sensorClient.createSensor(toCreate);
+        room.getSensorIds().add(created.id());
     }
 }
