@@ -1,3 +1,26 @@
 spring:
   application:
-    name: smart-home-mock
+    name: home-manager-mock
+  datasource:
+    url: jdbc:h2:mem:homemanager;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+server:
+  port: 8081
+
+# Comma-separated allowed origins for CORS — see config/CorsConfig.java.
+# Defaults already cover `npm run dev` (port 5173).
+app:
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173

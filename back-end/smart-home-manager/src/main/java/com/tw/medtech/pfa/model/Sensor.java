@@ -19,8 +19,4 @@ public class Sensor extends HomeComponent {
 
     @Column(length = 2000)
     private String data;    // raw JSON string, e.g. {"isOpen":false,"roomLightLux":363}
-
-    @ManyToOne
-    @JoinColumn(name = "room_id")
-    private Room room;
 }

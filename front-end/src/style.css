@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+  Design tokens — "instrumentation panel" direction.
+  A home-automation control surface, not a generic SaaS dashboard:
+  a light, cool workspace framed by a dark device "bezel" (the sidebar),
+  device-specific signal colors used the way status LEDs are, and a
+  monospace face reserved for live sensor readouts.
+*/
+@theme {
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-mist: #eef1f3;
+  --color-mist-dim: #e3e7ea;
+  --color-paper: #ffffff;
+  --color-panel: #161b22;
+  --color-panel-soft: #232a35;
+
+  --color-ink: #1e2530;
+  --color-ink-soft: #5b6472;
+  --color-ink-faint: #8a93a1;
+
+  --color-circuit: #2a4b8d;
+  --color-circuit-dark: #1f3a6f;
+  --color-circuit-tint: #eaf0fb;
+
+  --color-filament: #e8a33d;
+  --color-filament-tint: #fdf1de;
+  --color-coolant: #2f9e96;
+  --color-coolant-tint: #e4f6f4;
+  --color-moss: #6b8f58;
+  --color-moss-tint: #eef4ea;
+
+  --color-alert: #c4442e;
+  --color-alert-tint: #fbeae7;
+}
+
+html {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background-color: var(--color-mist);
+}
+
+/* Visible keyboard focus everywhere — not just on inputs */
+:focus-visible {
+  outline: 2px solid var(--color-circuit);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
