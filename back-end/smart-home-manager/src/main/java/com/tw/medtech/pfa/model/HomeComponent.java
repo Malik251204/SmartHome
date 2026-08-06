@@ -24,4 +24,12 @@ public abstract class HomeComponent {
     @Column(nullable = false)
     private Double unit;
 
+    // Moved up from Device/Sensor, which each declared this identically.
+    // Room.devices' `mappedBy = "room"` targets HomeComponent (the
+    // collection's declared element type), so the field has to live here,
+    // not on the subclasses, for Hibernate to resolve it.
+    @ManyToOne
+    @JoinColumn(name = "room_id")
+    private Room room;
+
 }
