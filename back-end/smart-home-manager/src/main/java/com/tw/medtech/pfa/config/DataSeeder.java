@@ -60,16 +60,20 @@ public class DataSeeder implements CommandLineRunner {
                 .name("Kitchen Curtains").unit(1.0).type(DeviceType.CURTAINS).status(DeviceStatus.ON).room(kitchen).build();
         deviceRepository.saveAll(List.of(livingRoomAc, bedroomBulb, kitchenCurtains));
 
-        // Create sensors in the mock backend, capture their IDs, link to rooms
-        seedSensorForRoom(livingRoom, "Living Room AC Sensor", "AC");
-        seedSensorForRoom(bedroom, "Bedroom Bulb Sensor", "LIGHT_BULB");
-        seedSensorForRoom(kitchen, "Kitchen Curtains Sensor", "CURTAINS");
+// Create sensors in the mock backend, capture their IDs, link to rooms.
+        // Starting data must satisfy each type's drift condition in the
+        // mock's SensorSimulationScheduler, or that sensor's data will
+        // never change: AC needs mode != "OFF", LIGHT_BULB needs isOn=true,
+        // CURTAINS drifts unconditionally regardless of starting data.
+        seedSensorForRoom(livingRoom, "Living Room AC Sensor", "AC", "{\"mode\":\"COOL\",\"targetTemp\":22}");
+        seedSensorForRoom(bedroom, "Bedroom Bulb Sensor", "LIGHT_BULB", "{\"isOn\":true,\"brightness\":80}");
+        seedSensorForRoom(kitchen, "Kitchen Curtains Sensor", "CURTAINS", "{\"roomLightLux\":400}");
 
         roomRepository.saveAll(List.of(livingRoom, bedroom, kitchen));
     }
 
-    private void seedSensorForRoom(Room room, String name, String type) {
-        MockSensorDto toCreate = new MockSensorDto(null, name, type, "1.0", "ON", "{}");
+    private void seedSensorForRoom(Room room, String name, String type, String data) {
+        MockSensorDto toCreate = new MockSensorDto(null, name, type, "1.0", "ON", data);
         MockSensorDto created = sensorClient.createSensor(toCreate);
         room.getSensorIds().add(created.id());
     }
