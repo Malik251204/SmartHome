@@ -7,9 +7,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// Mock-backend replacement for the real backend's Device + SmartAC/SmartBulb/
-// SmartCurtain split. One table, one `type` column, no inheritance — the
-// frontend gets a single /sensors endpoint instead of three parallel ones.
+// Mock-backend's live-data simulation for a room's ambient sensors (light,
+// temperature, occupancy) — independent of whatever Devices (actuators)
+// the actual backend has in that room. One table, one `type` column, no
+// inheritance — the frontend gets a single /sensors endpoint.
 //
 // This is intentionally scoped to ONLY what simulating a sensor's live
 // data requires. Room, User, and Preferences used to live in this backend

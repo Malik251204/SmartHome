@@ -58,26 +58,20 @@ public class SensorSimulationScheduler {
         ThreadLocalRandom random = ThreadLocalRandom.current();
 
         switch (sensor.getType()) {
-            case CURTAINS -> {
-                double lux = toDouble(data.get("roomLightLux"), 400);
+            case LUX -> {
+                double lux = toDouble(data.get("lux"), 400);
                 lux = clamp(lux + random.nextInt(-15, 16), 0, 1000);
-                data.put("roomLightLux", (int) lux);
+                data.put("lux", (int) lux);
             }
-            case LIGHT_BULB -> {
-                boolean isOn = Boolean.TRUE.equals(data.get("isOn"));
-                if (isOn) {
-                    double brightness = toDouble(data.get("brightness"), 100);
-                    brightness = clamp(brightness + random.nextInt(-3, 4), 1, 100);
-                    data.put("brightness", (int) brightness);
-                }
+            case TEMPERATURE -> {
+                double celsius = toDouble(data.get("celsius"), 21);
+                celsius = clamp(celsius + (random.nextDouble() - 0.5) * 0.6, 15, 30);
+                data.put("celsius", Math.round(celsius * 10.0) / 10.0);
             }
-            case AC -> {
-                String mode = String.valueOf(data.getOrDefault("mode", "OFF"));
-                if (!"OFF".equals(mode)) {
-                    double targetTemp = toDouble(data.get("targetTemp"), 22);
-                    targetTemp = clamp(targetTemp + (random.nextBoolean() ? 0.5 : -0.5), 16, 30);
-                    data.put("targetTemp", Math.round(targetTemp * 10.0) / 10.0);
-                }
+            case OCCUPANCY -> {
+                double count = toDouble(data.get("count"), 0);
+                count = clamp(count + random.nextInt(-2, 3), 0, 10);
+                data.put("count", (int) count);
             }
         }
 
