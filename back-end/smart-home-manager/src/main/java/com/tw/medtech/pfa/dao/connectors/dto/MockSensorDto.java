@@ -1,11 +1,10 @@
-package com.tw.medtech.pfa.web.dto;
+package com.tw.medtech.pfa.dao.connectors.dto;
 
-public record DeviceDto(
+public record MockSensorDto(
         Long id,
         String name,
         String type,
         String unit,
         String status,
-        Long roomId,
-        String roomName
+        String data
 ) {}

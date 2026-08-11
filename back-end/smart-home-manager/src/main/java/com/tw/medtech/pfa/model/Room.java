@@ -36,6 +36,12 @@ public class Room {
     @Builder.Default
     @ToString.Exclude
     private List<HomeComponent> devices = new ArrayList<>();
+    @ElementCollection
+    @CollectionTable(name = "room_sensor_ids", joinColumns = @JoinColumn(name = "room_id"))
+    @Column(name = "sensor_id")
+    @Builder.Default
+    @ToString.Exclude
+    private List<Long> sensorIds = new ArrayList<>();
 
     public Room(String name) {
         this.name = name;
