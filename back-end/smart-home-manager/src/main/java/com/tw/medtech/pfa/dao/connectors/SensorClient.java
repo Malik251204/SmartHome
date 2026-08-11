@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+
 import java.util.List;
 
 public class SensorClient {
@@ -23,9 +24,6 @@ public class SensorClient {
                     .retrieve()
                     .body(MockSensorDto.class);
         } catch (RestClientException e) {
-            // Sensor doesn't exist in the mock backend (deleted, or its
-            // in-memory DB was wiped on restart) — treat as "not found"
-            // rather than letting the error bubble up and break the room.
             return null;
         }
     }
@@ -48,5 +46,21 @@ public class SensorClient {
                 .body(sensor)
                 .retrieve()
                 .body(MockSensorDto.class);
+    }
+
+    public MockSensorDto updateSensor(Long id, MockSensorDto sensor) {
+        return restClient.put()
+                .uri("/api/sensors/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(sensor)
+                .retrieve()
+                .body(MockSensorDto.class);
+    }
+
+    public void deleteSensor(Long id) {
+        restClient.delete()
+                .uri("/api/sensors/{id}", id)
+                .retrieve()
+                .toBodilessEntity();
     }
 }
