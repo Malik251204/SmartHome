@@ -41,7 +41,7 @@ async function handleSubmit() {
     })
     router.push({ name: 'rooms' })
   } catch {
-    error.value = 'Could not create your account — that email might already be in use.'
+    error.value = 'Could not create your account. The backend may be unreachable, or that email is already in use.'
   } finally {
     loading.value = false
   }

@@ -5,6 +5,7 @@ import { useRoomsStore } from '@/stores/rooms'
 import { useAuthStore } from '@/stores/auth'
 import { isAdminLike } from '@/utils/permissions'
 import { useActionError } from '@/composables/useActionError'
+import { roomService } from '@/services/roomService'
 import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -25,14 +26,29 @@ onMounted(() => {
 
 const canManage = computed(() => isAdminLike(auth.role))
 
+// User doesn't carry its own room list (Room owns that relationship) — so
+// figuring out "my rooms" means cross-referencing the full room list, same
+// approach as PreferencesView.vue / UserDetailView.vue.
+const myRoomIds = ref<Set<string>>(new Set())
+onMounted(async () => {
+  if (canManage.value || !auth.user) return
+  try {
+    const allRooms = await roomService.listDetailed()
+    myRoomIds.value = new Set(
+      allRooms.filter((r) => r.users.some((u) => u.id === auth.user!.id)).map((r) => r.id),
+    )
+  } catch {
+    // Falls back to showing nothing rather than everything — safer default.
+  }
+})
+
 // Admin sees every room. Anyone else only sees the rooms they're actually
 // assigned to — this is a display filter, not a security boundary (there's
 // no real auth on the backend yet, same caveat as everywhere else in the
 // app right now).
 const visibleRooms = computed(() => {
   if (canManage.value) return store.items
-  const myRoomIds = new Set(auth.user?.rooms.map((r) => r.id) ?? [])
-  return store.items.filter((r) => myRoomIds.has(r.id))
+  return store.items.filter((r) => myRoomIds.value.has(r.id))
 })
 
 const showForm = ref(false)

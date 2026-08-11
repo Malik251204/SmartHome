@@ -39,11 +39,8 @@ export const handlers = [
       id: uuid(),
       name,
       email,
-      phoneNumber,
+      phoneNumber: Number(phoneNumber) || 0,
       role: 'classic_user',
-      roomIds: [],
-      rooms: [],
-      createdAt: new Date().toISOString(),
     }
     db.users = [...db.users, user]
     db.credentials = { ...db.credentials, [email]: password }

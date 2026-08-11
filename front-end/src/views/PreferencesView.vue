@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { usePreferencesStore } from '@/stores/preferences'
-import { useSensorsStore } from '@/stores/sensors'
 import { useAuthStore } from '@/stores/auth'
+import { roomService } from '@/services/roomService'
 import { useActionError } from '@/composables/useActionError'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -12,20 +12,26 @@ import IconPlus from '@/components/icons/IconPlus.vue'
 import type { PreferenceRule, PreferenceRuleInput } from '@/types/preference'
 
 const store = usePreferencesStore()
-const sensorsStore = useSensorsStore()
 const auth = useAuthStore()
+
+// Rooms the current user is assigned to — the room picker in the form
+// only offers these, not every room in the house. User doesn't own the
+// room relationship, so this comes from cross-referencing the full room
+// list rather than a direct lookup — see roomService.listDetailed().
+const myRooms = ref<{ id: string; name: string }[]>([])
 
 onMounted(async () => {
   if (!auth.user) return
-  await Promise.all([
-    store.fetchForUser(auth.user.id),
-    sensorsStore.items.length ? Promise.resolve() : sensorsStore.fetchAll(),
-  ])
+  await store.fetchForUser(auth.user.id)
+  try {
+    const allRooms = await roomService.listDetailed()
+    myRooms.value = allRooms
+      .filter((r) => r.users.some((u) => u.id === auth.user!.id))
+      .map((r) => ({ id: r.id, name: r.name }))
+  } catch {
+    // Room picker just falls back to "All my rooms" only — not fatal.
+  }
 })
-
-// Preferences don't exist on backend/actual yet at all (see
-// preferenceService.ts) — every write below fails and shows this message.
-const NOT_BUILT = 'Not available yet \u2014 preferences aren\u2019t built on backend/actual yet.'
 
 const showForm = ref(false)
 const editingRule = ref<PreferenceRule | null>(null)
@@ -46,10 +52,7 @@ function openEdit(rule: PreferenceRule) {
 
 async function handleSubmit(input: PreferenceRuleInput) {
   saving.value = true
-  await runForm(
-    () => (editingRule.value ? store.update(editingRule.value!.id, input) : store.create(input)),
-    NOT_BUILT,
-  )
+  await runForm(() => (editingRule.value ? store.update(editingRule.value!.id, input) : store.create(input)))
   if (!formError.value) showForm.value = false
   saving.value = false
 }
@@ -62,7 +65,7 @@ async function confirmDelete() {
   if (!pendingDelete.value) return
   deleting.value = true
   const id = pendingDelete.value.id
-  await runDelete(() => store.remove(id), NOT_BUILT)
+  await runDelete(() => store.remove(id))
   if (!deleteError.value) pendingDelete.value = null
   deleting.value = false
 }
@@ -74,12 +77,13 @@ async function confirmDelete() {
       <div>
         <h1 class="font-display text-xl font-semibold text-ink">Preferences</h1>
         <p class="max-w-xl text-sm text-ink-soft">
-          Automation rules for your own devices.
+          Write how you like things, in your own words. Leave "Applies to" as
+          "All my rooms" unless this is about one room specifically.
         </p>
       </div>
       <BaseButton @click="openCreate">
         <IconPlus class="h-4 w-4" />
-        Add rule
+        Add preference
       </BaseButton>
     </div>
 
@@ -93,9 +97,9 @@ async function confirmDelete() {
       v-else-if="store.items.length === 0"
       class="rounded-2xl border border-dashed border-mist-dim bg-paper px-6 py-16 text-center"
     >
-      <p class="font-display text-sm font-medium text-ink">No rules yet</p>
+      <p class="font-display text-sm font-medium text-ink">No preferences yet</p>
       <p class="mt-1 text-sm text-ink-soft">
-        Add a rule to describe how a device should behave automatically.
+        Add one to describe how you like your rooms — messy or specific, both are fine.
       </p>
     </div>
 
@@ -104,7 +108,7 @@ async function confirmDelete() {
     <PreferenceFormModal
       v-if="showForm && auth.user"
       :rule="editingRule"
-      :sensors="sensorsStore.items"
+      :my-rooms="myRooms"
       :user-id="auth.user.id"
       :saving="saving"
       :error="formError"
@@ -114,8 +118,8 @@ async function confirmDelete() {
 
     <ConfirmDialog
       v-if="pendingDelete"
-      title="Delete rule"
-      :message="`Remove this rule for &quot;${pendingDelete.deviceName}&quot;? This can't be undone.`"
+      title="Delete preference"
+      message="Remove this preference? This can't be undone."
       :loading="deleting"
       :error="deleteError"
       @confirm="confirmDelete"

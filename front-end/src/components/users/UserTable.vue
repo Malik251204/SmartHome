@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import RoleBadge from './RoleBadge.vue'
 import IconPencil from '@/components/icons/IconPencil.vue'
 import IconTrash from '@/components/icons/IconTrash.vue'
@@ -16,7 +17,6 @@ const emit = defineEmits<{ edit: [user: User]; delete: [user: User] }>()
           <th class="px-5 py-3 font-medium">Name</th>
           <th class="px-5 py-3 font-medium">Email</th>
           <th class="px-5 py-3 font-medium">Phone</th>
-          <th class="px-5 py-3 font-medium">Room</th>
           <th class="px-5 py-3 font-medium">Role</th>
           <th class="px-5 py-3 font-medium text-right">Actions</th>
         </tr>
@@ -28,17 +28,15 @@ const emit = defineEmits<{ edit: [user: User]; delete: [user: User] }>()
           class="border-b border-mist-dim last:border-0 hover:bg-mist/60"
         >
           <td class="px-5 py-3.5 font-medium text-ink">
-            {{ user.name }}
+            <RouterLink :to="{ name: 'user-detail', params: { id: user.id } }" class="hover:underline">
+              {{ user.name }}
+            </RouterLink>
             <span v-if="user.id === currentUserId" class="ml-1.5 text-xs font-normal text-ink-faint">
               (you)
             </span>
           </td>
           <td class="px-5 py-3.5 font-mono text-ink-soft">{{ user.email }}</td>
           <td class="px-5 py-3.5 font-mono text-ink-soft">{{ user.phoneNumber }}</td>
-          <td class="px-5 py-3.5 text-ink-soft">
-            <span v-if="user.rooms.length === 0">—</span>
-            <span v-else>{{ user.rooms.map((r) => r.name).join(', ') }}</span>
-          </td>
           <td class="px-5 py-3.5"><RoleBadge :role="user.role" /></td>
           <td class="px-5 py-3.5">
             <div class="flex justify-end gap-1">

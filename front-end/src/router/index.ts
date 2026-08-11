@@ -57,6 +57,12 @@ const router = createRouter({
           component: () => import('@/views/UsersView.vue'),
           meta: { requiresAdmin: true },
         },
+        {
+          path: 'users/:id',
+          name: 'user-detail',
+          component: () => import('@/views/UserDetailView.vue'),
+          meta: { requiresAdmin: true },
+        },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: { name: 'rooms' } },

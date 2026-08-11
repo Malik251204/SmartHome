@@ -1,22 +1,20 @@
 import { api } from './api'
 import type { Room, RoomDetail, RoomInput } from '@/types/room'
 import { toSensor, type RawSensorDto } from './sensorService'
-import { toUserFromRoomMembership, type NestedUserDto } from './userService'
+import { toDevice, type RawDeviceDto } from './deviceService'
+import { toUser, type RawUserDto } from './userService'
 
 const BASE_PATH = '/rooms'
 
 // GET /api/rooms and GET /api/rooms/{id} both return this same full,
 // nested RoomDto — no lightweight list variant on backend/actual.
-//
-// `devices` (generic actuators, ON/OFF/OPEN/CLOSED, no data/type) is not
-// mapped into our Room types. Our curtains/bulb/AC actuators match the
-// `sensors` shape instead (has type + JSON data). Worth confirming with
-// your teammate — not a settled decision, just the best current read.
+// `users` here is the same full UserDto shape as GET /api/users, so
+// there's no separate "nested user" mapping needed anymore.
 interface RawRoomDto {
   id: number
   name: string
-  users: NestedUserDto[]
-  devices: unknown[]
+  users: RawUserDto[]
+  devices: RawDeviceDto[]
   sensors: RawSensorDto[]
 }
 
@@ -30,21 +28,28 @@ function toRoom(dto: RawRoomDto): Room {
 }
 
 function toRoomDetail(dto: RawRoomDto): RoomDetail {
-  const ref = { id: String(dto.id), name: dto.name }
   return {
     id: String(dto.id),
     name: dto.name,
     sensors: dto.sensors.map(toSensor),
-    users: dto.users.map((u) => toUserFromRoomMembership(u, ref)),
+    devices: dto.devices.map(toDevice),
+    users: dto.users.map(toUser),
   }
 }
 
-// Room membership (sensors/users) is edited via sensorService/userService,
-// not here — this service only manages the room's own name.
+// CONFIRMED — all real, working endpoints on backend/actual.
 export const roomService = {
   async list(): Promise<Room[]> {
     const { data } = await api.get<RawRoomDto[]>(BASE_PATH)
     return data.map(toRoom)
+  },
+
+  // Full detail for every room, not just the summary — used by the User
+  // detail page to work out which rooms a user belongs to, since User
+  // doesn't own that relationship and has no reverse lookup of its own.
+  async listDetailed(): Promise<RoomDetail[]> {
+    const { data } = await api.get<RawRoomDto[]>(BASE_PATH)
+    return data.map(toRoomDetail)
   },
 
   async get(id: string): Promise<RoomDetail> {
@@ -52,7 +57,6 @@ export const roomService = {
     return toRoomDetail(data)
   },
 
-  // GUESSED — no write endpoints on backend/actual yet.
   async create(input: RoomInput): Promise<Room> {
     const { data } = await api.post<RawRoomDto>(BASE_PATH, input)
     return toRoom(data)
@@ -65,5 +69,17 @@ export const roomService = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`${BASE_PATH}/${id}`)
+  },
+
+  // Room owns the user relationship — assignment lives here, not on
+  // userService.
+  async assignUser(roomId: string, userId: string): Promise<RoomDetail> {
+    const { data } = await api.post<RawRoomDto>(`${BASE_PATH}/${roomId}/users/${userId}`)
+    return toRoomDetail(data)
+  },
+
+  async removeUser(roomId: string, userId: string): Promise<RoomDetail> {
+    const { data } = await api.delete<RawRoomDto>(`${BASE_PATH}/${roomId}/users/${userId}`)
+    return toRoomDetail(data)
   },
 }

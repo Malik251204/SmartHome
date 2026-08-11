@@ -4,19 +4,17 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { isAdminLike } from '@/utils/permissions'
 import { roomService } from '@/services/roomService'
-import { sensorService } from '@/services/sensorService'
+import { deviceService } from '@/services/deviceService'
 import { userService } from '@/services/userService'
 import { useActionError } from '@/composables/useActionError'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseSelect from '@/components/common/BaseSelect.vue'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import RoleBadge from '@/components/users/RoleBadge.vue'
 import SensorCard from '@/components/sensors/SensorCard.vue'
-import SensorFormModal from '@/components/sensors/SensorFormModal.vue'
-import IconPlus from '@/components/icons/IconPlus.vue'
+import DeviceCard from '@/components/rooms/DeviceCard.vue'
 import IconTrash from '@/components/icons/IconTrash.vue'
 import type { RoomDetail } from '@/types/room'
-import type { Sensor, SensorInput } from '@/types/sensor'
+import { DEVICE_STATUS_PAIR, type Device } from '@/types/device'
 import type { User } from '@/types/user'
 
 const route = useRoute()
@@ -42,8 +40,7 @@ async function loadRoom() {
 
 onMounted(loadRoom)
 
-// Refresh the room's own sensor readouts on the same cadence as the main
-// Sensors page used to, so cards here stay live too.
+// Refresh sensor readouts on the same cadence as the main Sensors page.
 let pollTimer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   pollTimer = setInterval(() => {
@@ -54,99 +51,21 @@ onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
 })
 
-// --- Sensors: toggle / edit / delete / create-in-room -------------------
+// --- Devices: the controllable actuators — real, working PUT ------------
 
-const showSensorForm = ref(false)
-const editingSensor = ref<Sensor | null>(null)
-const savingSensor = ref(false)
-const { error: sensorFormError, run: runSensorForm } = useActionError()
-// Shared banner for the quick actions below (toggle/assign/unassign),
-// which all hit the same not-yet-implemented sensor PUT.
-const { error: sensorActionError, run: runSensorAction } = useActionError()
+const { error: deviceActionError, run: runDeviceAction } = useActionError()
 
-function openCreateSensor() {
-  editingSensor.value = null
-  sensorFormError.value = null
-  showSensorForm.value = true
-}
-function openEditSensor(sensor: Sensor) {
-  editingSensor.value = sensor
-  sensorFormError.value = null
-  showSensorForm.value = true
-}
-
-async function handleSensorSubmit(input: SensorInput) {
-  savingSensor.value = true
-  await runSensorForm(async () => {
-    if (editingSensor.value) {
-      await sensorService.update(editingSensor.value!.id, input)
-    } else {
-      await sensorService.create(input)
-    }
-    await loadRoom()
-  })
-  if (!sensorFormError.value) showSensorForm.value = false
-  savingSensor.value = false
-}
-
-async function toggleSensor(sensor: Sensor, patch: Partial<SensorInput>) {
-  await runSensorAction(async () => {
-    await sensorService.update(sensor.id, { ...sensor, ...patch })
+async function toggleDevice(device: Device, on: boolean) {
+  if (!device.type) return
+  const status = DEVICE_STATUS_PAIR[device.type][on ? 1 : 0]
+  await runDeviceAction(async () => {
+    await deviceService.updateStatus(device.id, status)
     await loadRoom()
   })
 }
 
-const pendingDeleteSensor = ref<Sensor | null>(null)
-const deletingSensor = ref(false)
-const { error: deleteSensorError, run: runDeleteSensor } = useActionError()
-async function confirmDeleteSensor() {
-  if (!pendingDeleteSensor.value) return
-  deletingSensor.value = true
-  const id = pendingDeleteSensor.value.id
-  await runDeleteSensor(async () => {
-    await sensorService.remove(id)
-    await loadRoom()
-  })
-  if (!deleteSensorError.value) pendingDeleteSensor.value = null
-  deletingSensor.value = false
-}
+// --- Users: assign / remove — real, working endpoints ---------------------
 
-// Assign an existing sensor (unassigned, or currently in another room)
-const assignableSensors = ref<Sensor[]>([])
-const pickedSensorId = ref('')
-async function openAssignSensor() {
-  await runSensorAction(async () => {
-    const all = await sensorService.list()
-    assignableSensors.value = all.filter((s) => s.roomId !== roomId.value)
-    pickedSensorId.value = assignableSensors.value[0]?.id ?? ''
-  }, 'Could not load sensors to assign. Check your connection and try again.')
-}
-const assignSensorOptions = computed(() =>
-  assignableSensors.value.map((s) => ({
-    value: s.id,
-    label: s.roomName ? `${s.name} (currently in ${s.roomName})` : s.name,
-  })),
-)
-async function assignPickedSensor() {
-  const sensor = assignableSensors.value.find((s) => s.id === pickedSensorId.value)
-  if (!sensor) return
-  await runSensorAction(async () => {
-    await sensorService.update(sensor.id, { ...sensor, roomId: roomId.value })
-    assignableSensors.value = assignableSensors.value.filter((s) => s.id !== sensor.id)
-    pickedSensorId.value = assignableSensors.value[0]?.id ?? ''
-    await loadRoom()
-  })
-}
-async function unassignSensor(sensor: Sensor) {
-  await runSensorAction(async () => {
-    await sensorService.update(sensor.id, { ...sensor, roomId: null })
-    await loadRoom()
-  })
-}
-
-// --- Users: assign / remove ----------------------------------------------
-// backend/actual has no /api/users endpoint at all yet (see
-// userService.ts) — every action in this section is speculative.
 const { error: userActionError, run: runUserAction } = useActionError()
 
 const assignableUsers = ref<User[]>([])
@@ -154,9 +73,10 @@ const pickedUserId = ref('')
 async function openAssignUser() {
   await runUserAction(async () => {
     const all = await userService.list()
-    assignableUsers.value = all.filter((u) => !u.roomIds.includes(roomId.value))
+    const assignedIds = new Set(room.value?.users.map((u) => u.id) ?? [])
+    assignableUsers.value = all.filter((u) => !assignedIds.has(u.id))
     pickedUserId.value = assignableUsers.value[0]?.id ?? ''
-  }, 'Not available yet \u2014 backend/actual has no user directory to assign from.')
+  }, 'Could not load users to assign. Check your connection and try again.')
 }
 const assignUserOptions = computed(() =>
   assignableUsers.value.map((u) => ({ value: u.id, label: u.name })),
@@ -165,7 +85,7 @@ async function assignPickedUser() {
   const user = assignableUsers.value.find((u) => u.id === pickedUserId.value)
   if (!user) return
   await runUserAction(async () => {
-    await userService.update(user.id, { ...user, roomIds: [...user.roomIds, roomId.value] })
+    await roomService.assignUser(roomId.value, user.id)
     assignableUsers.value = assignableUsers.value.filter((u) => u.id !== user.id)
     pickedUserId.value = assignableUsers.value[0]?.id ?? ''
     await loadRoom()
@@ -173,7 +93,7 @@ async function assignPickedUser() {
 }
 async function removeUser(user: User) {
   await runUserAction(async () => {
-    await userService.update(user.id, { ...user, roomIds: user.roomIds.filter((id) => id !== roomId.value) })
+    await roomService.removeUser(roomId.value, user.id)
     await loadRoom()
   })
 }
@@ -192,53 +112,32 @@ async function removeUser(user: User) {
     <template v-else-if="room">
       <h1 class="font-display text-xl font-semibold text-ink">{{ room.name }}</h1>
 
-      <!-- Sensors -->
+      <!-- Devices: controllable actuators -->
       <section class="space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 class="font-display text-base font-semibold text-ink">Sensors</h2>
-          <div v-if="canManage" class="flex items-center gap-2">
-            <BaseSelect
-              v-if="assignableSensors.length > 0"
-              v-model="pickedSensorId"
-              label="Sensor"
-              :options="assignSensorOptions"
-              class="w-56"
-            />
-            <BaseButton v-if="assignableSensors.length > 0" size="sm" variant="subtle" @click="assignPickedSensor">
-              Assign
-            </BaseButton>
-            <BaseButton size="sm" variant="ghost" @click="openAssignSensor">Find sensor to assign</BaseButton>
-            <BaseButton size="sm" @click="openCreateSensor">
-              <IconPlus class="h-4 w-4" />
-              New sensor
-            </BaseButton>
-          </div>
-        </div>
+        <h2 class="font-display text-base font-semibold text-ink">Devices</h2>
 
-        <p v-if="sensorActionError" class="rounded-lg bg-alert-tint px-3 py-2 text-sm text-alert">
-          {{ sensorActionError }}
+        <p v-if="deviceActionError" class="rounded-lg bg-alert-tint px-3 py-2 text-sm text-alert">
+          {{ deviceActionError }}
         </p>
+
+        <p v-if="room.devices.length === 0" class="text-sm text-ink-soft">No devices in this room yet.</p>
+        <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <DeviceCard
+            v-for="device in room.devices"
+            :key="device.id"
+            :device="device"
+            @toggle="(on) => toggleDevice(device, on)"
+          />
+        </div>
+      </section>
+
+      <!-- Sensors: read-only ambient readings -->
+      <section class="space-y-4">
+        <h2 class="font-display text-base font-semibold text-ink">Sensors</h2>
 
         <p v-if="room.sensors.length === 0" class="text-sm text-ink-soft">No sensors in this room yet.</p>
         <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div v-for="sensor in room.sensors" :key="sensor.id" class="relative">
-            <SensorCard
-              :sensor="sensor"
-              @edit="openEditSensor(sensor)"
-              @delete="pendingDeleteSensor = sensor"
-              @toggle-enabled="(on) => toggleSensor(sensor, { status: on ? 'on' : 'off' })"
-              @toggle-curtains="(open) => toggleSensor(sensor, { data: { ...sensor.data, isOpen: open } })"
-              @toggle-bulb="(on) => toggleSensor(sensor, { data: { ...sensor.data, isOn: on } })"
-            />
-            <button
-              v-if="canManage"
-              type="button"
-              class="absolute right-3 top-3 rounded-md bg-paper/90 px-2 py-1 text-xs font-medium text-ink-faint shadow-sm hover:bg-alert-tint hover:text-alert"
-              @click="unassignSensor(sensor)"
-            >
-              Remove from room
-            </button>
-          </div>
+          <SensorCard v-for="sensor in room.sensors" :key="sensor.id" :sensor="sensor" />
         </div>
       </section>
 
@@ -292,25 +191,5 @@ async function removeUser(user: User) {
         </div>
       </section>
     </template>
-
-    <SensorFormModal
-      v-if="showSensorForm"
-      :sensor="editingSensor"
-      :saving="savingSensor"
-      :default-room-id="roomId"
-      :error="sensorFormError"
-      @submit="handleSensorSubmit"
-      @close="showSensorForm = false"
-    />
-
-    <ConfirmDialog
-      v-if="pendingDeleteSensor"
-      title="Delete sensor"
-      :message="`Remove &quot;${pendingDeleteSensor.name}&quot;? This can't be undone.`"
-      :loading="deletingSensor"
-      :error="deleteSensorError"
-      @confirm="confirmDeleteSensor"
-      @cancel="pendingDeleteSensor = null"
-    />
   </div>
 </template>

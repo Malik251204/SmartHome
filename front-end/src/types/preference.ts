@@ -1,15 +1,14 @@
-// Matches the class diagram's PreferenceRule fields, plus a denormalized
-// deviceName for display (same rationale as Command.sensorName).
+// A preference is a free-form statement from a user, optionally scoped to
+// one room. Unscoped (roomId null) means "applies to every room this user
+// is currently assigned to" — resolved dynamically, not stored as a list.
 export interface PreferenceRule {
   id: string
   userId: string
-  deviceId: string
-  deviceName: string
-  condition: string
-  action: string
-  strict: boolean
+  roomId: string | null
+  roomName: string | null
+  text: string
   enabled: boolean
   createdAt: string
 }
 
-export type PreferenceRuleInput = Omit<PreferenceRule, 'id' | 'createdAt'>
+export type PreferenceRuleInput = { userId: string; roomId: string | null; text: string; enabled: boolean }

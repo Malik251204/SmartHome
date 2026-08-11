@@ -1,35 +1,20 @@
 import { api } from './api'
-import type {
-  Sensor,
-  SensorInput,
-  SensorType,
-  SensorStatus,
-  SensorData,
-  SensorReading,
-  CurtainsData,
-  LightBulbData,
-  ACData,
-} from '@/types/sensor'
+import type { Sensor, SensorType, SensorStatus, SensorData, SensorReading, LuxData, TemperatureData, OccupancyData } from '@/types/sensor'
 
-// CONFIRMED: GET /api/sensors, GET /api/sensors/{id} on backend/actual.
-// create/update/remove/readings are GUESSED — not implemented on
-// backend/actual yet, kept wired for when they are; callers already
-// handle the 404s.
+// CONFIRMED: GET /api/sensors, GET /api/sensors/{id} on backend/actual —
+// proxied live from backend/mock. No write methods: sensors are read-only,
+// seeded once via DataSeeder, never created/edited through the app.
 const BASE_PATH = '/sensors'
 
 export interface RawSensorDto {
   id: number
   name: string
-  // backend/actual's `type` is a free-form String, not restricted to
-  // CURTAINS/LIGHT_BULB/AC at the DB level. Kept as SensorType since
-  // that's our product domain; parseSensorData() below degrades safely
-  // on an unrecognized value.
   type: SensorType
   unit: string
   status: string
   data: string | null
-  // roomId comes back as a String here (unlike DeviceDto.roomId, a Long
-  // — inconsistency is backend/actual's own).
+  // Comes back as a String here (unlike DeviceDto.roomId, a Long —
+  // inconsistency is backend/actual's own).
   roomId: string | null
   roomName: string | null
 }
@@ -51,29 +36,14 @@ function parseSensorData(type: SensorType, raw: string | null): SensorData {
     }
   }
 
-  if (type === 'CURTAINS') {
-    return {
-      isOpen: Boolean(parsed.isOpen ?? false),
-      roomLightLux: typeof parsed.roomLightLux === 'number' ? (parsed.roomLightLux as number) : undefined,
-    } satisfies CurtainsData
+  if (type === 'LUX') {
+    return { lux: typeof parsed.lux === 'number' ? (parsed.lux as number) : 0 } satisfies LuxData
   }
-
-  if (type === 'LIGHT_BULB') {
-    return {
-      isOn: Boolean(parsed.isOn ?? false),
-      brightness: typeof parsed.brightness === 'number' ? (parsed.brightness as number) : 100,
-    } satisfies LightBulbData
+  if (type === 'TEMPERATURE') {
+    return { celsius: typeof parsed.celsius === 'number' ? (parsed.celsius as number) : 0 } satisfies TemperatureData
   }
-
   // Also the fallback for any unrecognized type string.
-  return {
-    mode: (parsed.mode as ACData['mode']) ?? 'OFF',
-    targetTemp: typeof parsed.targetTemp === 'number' ? (parsed.targetTemp as number) : 22,
-  } satisfies ACData
-}
-
-function serializeSensorData(data: SensorData): string {
-  return JSON.stringify(data)
+  return { count: typeof parsed.count === 'number' ? (parsed.count as number) : 0 } satisfies OccupancyData
 }
 
 export function toSensor(dto: RawSensorDto): Sensor {
@@ -82,8 +52,8 @@ export function toSensor(dto: RawSensorDto): Sensor {
     name: dto.name,
     type: dto.type,
     unit: dto.unit ?? '',
-    // status is free-form on backend/actual too (e.g. "ACTIVE"/"INACTIVE",
-    // not "on"/"off") — match case-insensitively, default to "on".
+    // status is free-form on backend/actual (e.g. "ACTIVE"/"INACTIVE", not
+    // "on"/"off") — match case-insensitively, default to "on".
     status: (['off', 'inactive'].includes((dto.status ?? '').toLowerCase()) ? 'off' : 'on') as SensorStatus,
     data: parseSensorData(dto.type, dto.data),
     roomId: dto.roomId ?? null,
@@ -98,39 +68,8 @@ export const sensorService = {
     return data.map(toSensor)
   },
 
-  async create(input: SensorInput): Promise<Sensor> {
-    const body = {
-      name: input.name,
-      type: input.type,
-      unit: input.unit,
-      status: input.status,
-      data: serializeSensorData(input.data),
-      roomId: input.roomId,
-    }
-    const { data } = await api.post<RawSensorDto>(BASE_PATH, body)
-    return toSensor(data)
-  },
-
-  // Full-overwrite semantics assumed, matching the rest of this app.
-  async update(id: string, input: SensorInput): Promise<Sensor> {
-    const body = {
-      name: input.name,
-      type: input.type,
-      unit: input.unit,
-      status: input.status,
-      data: serializeSensorData(input.data),
-      roomId: input.roomId,
-    }
-    const { data } = await api.put<RawSensorDto>(`${BASE_PATH}/${id}`, body)
-    return toSensor(data)
-  },
-
-  async remove(id: string): Promise<void> {
-    await api.delete(`${BASE_PATH}/${id}`)
-  },
-
-  // No /readings route on backend/actual — only backend/mock has one, and
-  // it's not proxied yet (see SensorClient.java).
+  // GUESSED — no /readings route on backend/actual, only backend/mock has
+  // one, and it's not proxied yet (see SensorClient.java).
   async readings(id: string, type: SensorType, limit = 20): Promise<SensorReading[]> {
     const { data } = await api.get<RawReadingDto[]>(`${BASE_PATH}/${id}/readings`, { params: { limit } })
     return data

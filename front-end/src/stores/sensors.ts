@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { sensorService } from '@/services/sensorService'
-import type { Sensor, SensorInput } from '@/types/sensor'
+import type { Sensor } from '@/types/sensor'
 
 interface SensorsState {
   items: Sensor[]
@@ -10,6 +10,7 @@ interface SensorsState {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
+// Read-only — sensors have no write path (see sensorService.ts).
 export const useSensorsStore = defineStore('sensors', {
   state: (): SensorsState => ({
     items: [],
@@ -53,26 +54,6 @@ export const useSensorsStore = defineStore('sensors', {
         clearInterval(pollTimer)
         pollTimer = null
       }
-    },
-
-    async create(input: SensorInput) {
-      const created = await sensorService.create(input)
-      this.items = [...this.items, created]
-      return created
-    },
-
-    // Single write path — direct and synchronous, no command queue. Used
-    // for both metadata edits (name/unit/status/room) and operational
-    // changes (open/close, on/off, temperature) alike.
-    async update(id: string, input: SensorInput) {
-      const updated = await sensorService.update(id, input)
-      this.items = this.items.map((s) => (s.id === id ? updated : s))
-      return updated
-    },
-
-    async remove(id: string) {
-      await sensorService.remove(id)
-      this.items = this.items.filter((s) => s.id !== id)
     },
   },
 })

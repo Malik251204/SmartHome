@@ -1,20 +1,36 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useSensorsStore } from '@/stores/sensors'
-import { useActionError } from '@/composables/useActionError'
-import BaseButton from '@/components/common/BaseButton.vue'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useAuthStore } from '@/stores/auth'
+import { isAdminLike } from '@/utils/permissions'
+import { roomService } from '@/services/roomService'
 import LedDot from '@/components/common/LedDot.vue'
 import SensorCard from '@/components/sensors/SensorCard.vue'
-import SensorFormModal from '@/components/sensors/SensorFormModal.vue'
-import IconPlus from '@/components/icons/IconPlus.vue'
-import { SENSOR_TYPES, SENSOR_TYPE_LABELS, type Sensor, type SensorInput, type SensorType } from '@/types/sensor'
+import { SENSOR_TYPES, SENSOR_TYPE_LABELS, type SensorType } from '@/types/sensor'
 
 const store = useSensorsStore()
+const auth = useAuthStore()
+const canSeeAll = computed(() => isAdminLike(auth.role))
+
+// Classic users only see sensors in rooms they're actually assigned to —
+// same room-membership technique as RoomsView.vue/PreferencesView.vue,
+// since sensors otherwise have no owner/room-visibility restriction of
+// their own on the backend.
+const myRoomIds = ref<Set<string>>(new Set())
 
 onMounted(async () => {
   await store.fetchAll()
   store.startPolling()
+  if (!canSeeAll.value && auth.user) {
+    try {
+      const allRooms = await roomService.listDetailed()
+      myRoomIds.value = new Set(
+        allRooms.filter((r) => r.users.some((u) => u.id === auth.user!.id)).map((r) => r.id),
+      )
+    } catch {
+      // Falls back to showing nothing rather than everything — safer default.
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -27,63 +43,15 @@ const filters: { value: SensorType | 'ALL'; label: string }[] = [
   ...SENSOR_TYPES.map((t) => ({ value: t, label: SENSOR_TYPE_LABELS[t] })),
 ]
 
-const filteredSensors = computed(() =>
-  activeFilter.value === 'ALL'
-    ? store.items
-    : store.items.filter((s) => s.type === activeFilter.value),
+const visibleSensors = computed(() =>
+  canSeeAll.value ? store.items : store.items.filter((s) => s.roomId && myRoomIds.value.has(s.roomId)),
 )
 
-const showForm = ref(false)
-const editingSensor = ref<Sensor | null>(null)
-const saving = ref(false)
-const { error: formError, run: runForm } = useActionError()
-
-function openCreate() {
-  editingSensor.value = null
-  formError.value = null
-  showForm.value = true
-}
-
-function openEdit(sensor: Sensor) {
-  editingSensor.value = sensor
-  formError.value = null
-  showForm.value = true
-}
-
-async function handleSubmit(input: SensorInput) {
-  saving.value = true
-  await runForm(() => (editingSensor.value ? store.update(editingSensor.value!.id, input) : store.create(input)))
-  if (!formError.value) showForm.value = false
-  saving.value = false
-}
-
-// Controlled purely by the sensor prop (see SensorCard.vue) — on failure
-// the switch just stays as-is. Only catching here to avoid an unhandled
-// rejection; no user-facing message for a quick toggle.
-async function handleToggleEnabled(sensor: Sensor, on: boolean) {
-  await store.update(sensor.id, { ...sensor, status: on ? 'on' : 'off' }).catch(() => {})
-}
-
-async function handleToggleCurtains(sensor: Sensor, open: boolean) {
-  await store.update(sensor.id, { ...sensor, data: { ...sensor.data, isOpen: open } }).catch(() => {})
-}
-
-async function handleToggleBulb(sensor: Sensor, on: boolean) {
-  await store.update(sensor.id, { ...sensor, data: { ...sensor.data, isOn: on } }).catch(() => {})
-}
-
-const pendingDelete = ref<Sensor | null>(null)
-const deleting = ref(false)
-const { error: deleteError, run: runDelete } = useActionError()
-
-async function confirmDelete() {
-  if (!pendingDelete.value) return
-  deleting.value = true
-  const id = pendingDelete.value.id
-  await runDelete(() => store.remove(id))
-  if (!deleteError.value) pendingDelete.value = null
-  deleting.value = false
-}
+const filteredSensors = computed(() =>
+  activeFilter.value === 'ALL'
+    ? visibleSensors.value
+    : visibleSensors.value.filter((s) => s.type === activeFilter.value),
+)
 </script>
 
 <template>
@@ -91,20 +59,14 @@ async function confirmDelete() {
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="font-display text-xl font-semibold text-ink">Sensors</h1>
-        <p class="text-sm text-ink-soft">Monitor live device state and manage the fleet.</p>
+        <p class="text-sm text-ink-soft">Live ambient readings for every room.</p>
       </div>
-      <div class="flex items-center gap-3">
-        <span
-          class="hidden items-center gap-1.5 rounded-full bg-mist px-2.5 py-1 text-xs font-medium text-ink-soft sm:inline-flex"
-        >
-          <LedDot :on="true" color="circuit" />
-          Live · refreshes every 5s
-        </span>
-        <BaseButton @click="openCreate">
-          <IconPlus class="h-4 w-4" />
-          Add sensor
-        </BaseButton>
-      </div>
+      <span
+        class="hidden items-center gap-1.5 rounded-full bg-mist px-2.5 py-1 text-xs font-medium text-ink-soft sm:inline-flex"
+      >
+        <LedDot :on="true" color="circuit" />
+        Live · refreshes every 5s
+      </span>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -137,39 +99,11 @@ async function confirmDelete() {
       class="rounded-2xl border border-dashed border-mist-dim bg-paper px-6 py-16 text-center"
     >
       <p class="font-display text-sm font-medium text-ink">No sensors here yet</p>
-      <p class="mt-1 text-sm text-ink-soft">Add a sensor to start monitoring and controlling it.</p>
+      <p class="mt-1 text-sm text-ink-soft">Sensors are seeded per room — none exist yet.</p>
     </div>
 
     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <SensorCard
-        v-for="sensor in filteredSensors"
-        :key="sensor.id"
-        :sensor="sensor"
-        @edit="openEdit(sensor)"
-        @delete="pendingDelete = sensor"
-        @toggle-enabled="(on) => handleToggleEnabled(sensor, on)"
-        @toggle-curtains="(open) => handleToggleCurtains(sensor, open)"
-        @toggle-bulb="(on) => handleToggleBulb(sensor, on)"
-      />
+      <SensorCard v-for="sensor in filteredSensors" :key="sensor.id" :sensor="sensor" />
     </div>
-
-    <SensorFormModal
-      v-if="showForm"
-      :sensor="editingSensor"
-      :saving="saving"
-      :error="formError"
-      @submit="handleSubmit"
-      @close="showForm = false"
-    />
-
-    <ConfirmDialog
-      v-if="pendingDelete"
-      title="Delete sensor"
-      :message="`Remove &quot;${pendingDelete.name}&quot;? This can't be undone.`"
-      :loading="deleting"
-      :error="deleteError"
-      @confirm="confirmDelete"
-      @cancel="pendingDelete = null"
-    />
   </div>
 </template>

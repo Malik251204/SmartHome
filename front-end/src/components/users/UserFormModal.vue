@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { reactive, computed, onMounted } from 'vue'
+import { reactive, computed } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import BaseSelect from '@/components/common/BaseSelect.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
-import RoomMultiSelect from '@/components/common/RoomMultiSelect.vue'
-import { useRoomsStore } from '@/stores/rooms'
 import { USER_ROLES, USER_ROLE_LABELS, type User, type UserInput } from '@/types/user'
 
 const props = defineProps<{ user: User | null; saving?: boolean; error?: string | null }>()
@@ -13,36 +11,34 @@ const emit = defineEmits<{ submit: [input: UserInput]; close: [] }>()
 
 const isEditing = !!props.user
 
-const rooms = useRoomsStore()
-onMounted(() => {
-  if (rooms.items.length === 0) rooms.fetchAll()
+// Phone number kept as a string in the form (natural for typing/editing),
+// converted to a number only when submitting — matches UserInput.phoneNumber
+// (a real number on backend/actual).
+const form = reactive({
+  name: props.user?.name ?? '',
+  email: props.user?.email ?? '',
+  phoneNumber: props.user ? String(props.user.phoneNumber) : '',
+  role: props.user?.role ?? 'classic_user',
 })
-
-const form = reactive<UserInput>(
-  props.user
-    ? {
-        name: props.user.name,
-        email: props.user.email,
-        phoneNumber: props.user.phoneNumber,
-        role: props.user.role,
-        roomIds: [...props.user.roomIds],
-      }
-    : { name: '', email: '', phoneNumber: '', role: 'classic_user', roomIds: [] },
-)
 
 const roleOptions = USER_ROLES.map((r) => ({ value: r, label: USER_ROLE_LABELS[r] }))
 
 const errors = computed(() => ({
   name: form.name.trim().length === 0 ? 'Name is required' : '',
   email: /^\S+@\S+\.\S+$/.test(form.email) ? '' : 'Enter a valid email address',
-  phoneNumber: form.phoneNumber.trim().length === 0 ? 'Phone number is required' : '',
+  phoneNumber: /^\d+$/.test(form.phoneNumber.trim()) ? '' : 'Digits only, no spaces or symbols',
 }))
 
 const canSubmit = computed(() => Object.values(errors.value).every((e) => e === ''))
 
 function handleSubmit() {
   if (!canSubmit.value) return
-  emit('submit', { ...form, name: form.name.trim(), email: form.email.trim() })
+  emit('submit', {
+    name: form.name.trim(),
+    email: form.email.trim(),
+    phoneNumber: Number(form.phoneNumber.trim()),
+    role: form.role,
+  })
 }
 </script>
 
@@ -63,10 +59,13 @@ function handleSubmit() {
         label="Phone number"
         required
         :error="errors.phoneNumber"
-        placeholder="+216 20 000 000"
+        placeholder="21620000000"
       />
       <BaseSelect v-model="form.role" label="Role" :options="roleOptions" />
-      <RoomMultiSelect v-model="form.roomIds" label="Rooms" :rooms="rooms.items" />
+
+      <p class="text-xs text-ink-faint">
+        Room assignment is managed from each room's own page, not here.
+      </p>
 
       <p v-if="error" class="rounded-lg bg-alert-tint px-3 py-2 text-sm text-alert">{{ error }}</p>
 

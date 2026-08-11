@@ -20,7 +20,7 @@ export const usePreferencesStore = defineStore('preferences', {
       this.loading = true
       this.error = null
       try {
-        this.items = await preferenceService.list(userId)
+        this.items = await preferenceService.listForUser(userId)
       } catch {
         this.error = 'Could not load preferences. Check your connection and try again.'
       } finally {

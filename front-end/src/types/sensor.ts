@@ -1,32 +1,26 @@
-// Sensor domain types.
+// Sensor domain types. Sensors are read-only ambient room readings —
+// independent of Devices (the controllable actuators, see room.ts /
+// deviceService.ts). No create/edit/delete: sensors only ever come from
+// seeding, via backend/mock.
 
-
-export const SENSOR_TYPES = ['CURTAINS', 'LIGHT_BULB', 'AC'] as const
+export const SENSOR_TYPES = ['LUX', 'TEMPERATURE', 'OCCUPANCY'] as const
 export type SensorType = (typeof SENSOR_TYPES)[number]
 
 export type SensorStatus = 'on' | 'off'
 
-
-export interface CurtainsData {
-  isOpen: boolean
-  roomLightLux?: number
+export interface LuxData {
+  lux: number
 }
 
-
-export interface LightBulbData {
-  isOn: boolean
-  brightness: number // 0-100
+export interface TemperatureData {
+  celsius: number
 }
 
-export type ACMode = 'OFF' | 'HEAT' | 'COOL'
-
-
-export interface ACData {
-  mode: ACMode
-  targetTemp: number // degrees C
+export interface OccupancyData {
+  count: number
 }
 
-export type SensorData = CurtainsData | LightBulbData | ACData
+export type SensorData = LuxData | TemperatureData | OccupancyData
 
 export interface Sensor {
   id: string
@@ -36,17 +30,13 @@ export interface Sensor {
   status: SensorStatus
   data: SensorData
   updatedAt: string
-  // Real relation on the backend now (a Room table exists). null = unassigned.
   roomId: string | null
   roomName: string | null
 }
 
-// roomName is server-computed (derived from the room relation) — not part
-// of what a caller writes, only what they read back.
-export type SensorInput = Omit<Sensor, 'id' | 'updatedAt' | 'roomName'>
-
 // A point-in-time snapshot from the backend's reading history (Reading
-// entity) — real and persisted now, not a client-side approximation.
+// entity) — real and persisted on backend/mock, though not yet proxied
+// through backend/actual (see sensorService.ts).
 export interface SensorReading {
   id: string
   sensorId: string
@@ -54,32 +44,20 @@ export interface SensorReading {
   data: SensorData
 }
 
-export function defaultDataFor(type: SensorType): SensorData {
-  switch (type) {
-    case 'CURTAINS':
-      return { isOpen: false }
-    case 'LIGHT_BULB':
-      return { isOn: false, brightness: 100 }
-    case 'AC':
-      return { mode: 'OFF', targetTemp: 22 }
-  }
-}
-
-// `unit` on backend/actual is actually a stringified Double (e.g. "1.0"),
-// not a descriptive string like "%". Intended meaning unconfirmed.
-export function defaultUnitFor(type: SensorType): string {
-  switch (type) {
-    case 'CURTAINS':
-      return ''
-    case 'LIGHT_BULB':
-      return '%'
-    case 'AC':
-      return '\u00b0C'
-  }
-}
-
 export const SENSOR_TYPE_LABELS: Record<SensorType, string> = {
-  CURTAINS: 'Curtains',
-  LIGHT_BULB: 'Light bulb',
-  AC: 'Air conditioner',
+  LUX: 'Light level',
+  TEMPERATURE: 'Temperature',
+  OCCUPANCY: 'Occupancy',
+}
+
+export const SENSOR_TYPE_UNITS: Record<SensorType, string> = {
+  LUX: 'lux',
+  TEMPERATURE: '\u00b0C',
+  OCCUPANCY: 'people',
+}
+
+export function formatSensorValue(type: SensorType, data: SensorData): string {
+  if (type === 'LUX') return `${(data as LuxData).lux} lux`
+  if (type === 'TEMPERATURE') return `${(data as TemperatureData).celsius}\u00b0C`
+  return `${(data as OccupancyData).count} ${(data as OccupancyData).count === 1 ? 'person' : 'people'}`
 }

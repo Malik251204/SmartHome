@@ -1,13 +1,7 @@
 // Room domain types.
 import type { Sensor } from './sensor'
+import type { Device } from './device'
 import type { User } from './user'
-
-// Minimal reference used wherever a room is shown without needing its full
-// contents (e.g. inside a User's `rooms` list).
-export interface RoomRef {
-  id: string
-  name: string
-}
 
 // List-view shape — counts instead of full nested lists. backend/actual
 // has no lightweight list endpoint, so roomService derives these
@@ -26,5 +20,6 @@ export interface RoomDetail {
   id: string
   name: string
   sensors: Sensor[]
+  devices: Device[]
   users: User[]
 }

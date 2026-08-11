@@ -60,23 +60,24 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async signup(payload: SignupPayload) {
-      const { token, user } = await authService.signup(payload)
+      // Create the REAL backend user first. If this fails, stop here —
+      // don't touch the mock auth layer at all. The previous order created
+      // the mock account first (unconditionally, always succeeds) and only
+      // attempted the real one after, which meant a failed real creation
+      // still left a permanently-loggable-into fake account behind with
+      // nothing real backing it. Reordering fixes that at the root instead
+      // of trying to clean up after the fact.
+      const created = await userService.create({
+        name: payload.name,
+        email: payload.email,
+        phoneNumber: Number(payload.phoneNumber) || 0,
+        role: 'classic_user',
+      })
+      // Only now register the mock login credentials, using the same
+      // payload — this is still needed since login itself stays mocked.
+      const { token } = await authService.signup(payload)
       this.token = token
-      // Signup is the one place we don't just hope for a match — we
-      // actively create the corresponding real backend user, so a
-      // freshly signed-up person is immediately real, not fictional.
-      try {
-        const created = await userService.create({
-          name: user.name,
-          email: user.email,
-          phoneNumber: payload.phoneNumber,
-          role: user.role,
-          roomIds: [],
-        })
-        this.user = created
-      } catch {
-        this.user = user
-      }
+      this.user = created
       this.persist()
     },
 

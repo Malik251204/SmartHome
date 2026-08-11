@@ -68,7 +68,15 @@ function logout() {
     </aside>
 
     <main class="flex-1 px-6 py-8 lg:px-10">
-      <div class="mx-auto max-w-6xl">
+      <div class="mx-auto max-w-6xl space-y-4">
+        <p
+          v-if="!auth.hasRealIdentity"
+          class="rounded-lg bg-alert-tint px-4 py-3 text-sm text-alert"
+        >
+          You're signed in with a demo identity that isn't a real backend
+          account — Preferences and anything tied to your user id won't
+          work. Sign up with a new account to get a real one.
+        </p>
         <RouterView />
       </div>
     </main>

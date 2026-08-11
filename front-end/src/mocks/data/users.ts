@@ -6,35 +6,37 @@ export const seedUsers: User[] = [
     id: uuid(),
     name: 'Amine Admin',
     email: 'admin@homecontrol.io',
-    phoneNumber: '+216 20 000 001',
+    phoneNumber: 21620000001,
     role: 'admin',
-    roomIds: [],
-    rooms: [],
-    createdAt: new Date().toISOString(),
   },
   {
     id: uuid(),
     name: 'Mia Maintainer',
     email: 'maintainer@homecontrol.io',
-    phoneNumber: '+216 20 000 002',
+    phoneNumber: 21620000002,
     role: 'maintainer',
-    roomIds: [],
-    rooms: [],
-    createdAt: new Date().toISOString(),
   },
   {
     id: uuid(),
     name: 'Cyrine Classic',
     email: 'user@homecontrol.io',
-    phoneNumber: '+216 20 000 003',
+    phoneNumber: 21620000003,
     role: 'classic_user',
-    // This mock identity is fictional and never has a real numeric backend
-    // id (see stores/auth.ts's hasRealIdentity), so it can't reference a
-    // real Room row either — it stays unassigned until resolveRealIdentity
-    // swaps in an actual backend user.
-    roomIds: [],
-    rooms: [],
-    createdAt: new Date().toISOString(),
+  },
+  // Matches DataSeeder's real seeded admin (alice@example.com, ADMIN) on
+  // backend/actual. Logging in with this email/password succeeds at the
+  // mock layer, then resolveRealIdentity() (stores/auth.ts) swaps in the
+  // real backend record — real numeric id, real ADMIN role — so this is a
+  // one-step way to test as a real admin, no signup+promote+relogin dance.
+  // The name/role here are just the fallback if the real lookup ever
+  // fails; what you actually get on a successful login is Alice's real
+  // record.
+  {
+    id: uuid(),
+    name: 'Alice Smith',
+    email: 'alice@example.com',
+    phoneNumber: 555123456,
+    role: 'admin',
   },
 ]
 
@@ -45,4 +47,5 @@ export const DEMO_CREDENTIALS: Record<string, string> = {
   'admin@homecontrol.io': 'admin123',
   'maintainer@homecontrol.io': 'maintainer123',
   'user@homecontrol.io': 'user123',
+  'alice@example.com': 'alice123',
 }

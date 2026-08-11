@@ -1,27 +1,20 @@
-import type { RoomRef } from './room'
-
 export const USER_ROLES = ['classic_user', 'maintainer', 'admin'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
-// backend/actual has no /api/users yet — only RoomDto's nested users
-// ({id, name, email}) are real. phoneNumber/role/rooms below are UI
-// placeholders until a real user endpoint exists — see userService.ts.
+// CONFIRMED — matches backend/actual's real UserDto exactly.
+// Room membership isn't part of this shape at all (User doesn't own that
+// relationship — Room does). To find a user's rooms, cross-reference
+// against the full room list (see roomService.ts) rather than expecting
+// it here.
 export interface User {
   id: string
   name: string
   email: string
-  phoneNumber: string
+  phoneNumber: number
   role: UserRole
-  createdAt: string
-  // Real relation on the backend now — a user can belong to any number of
-  // rooms at once (e.g. staff overseeing several).
-  roomIds: string[]
-  rooms: RoomRef[]
 }
 
-// `rooms` is server-computed (derived from roomIds) — not part of what a
-// caller writes, only what they read back.
-export type UserInput = Omit<User, 'id' | 'createdAt' | 'rooms'>
+export type UserInput = Omit<User, 'id'>
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   classic_user: 'Classic user',
