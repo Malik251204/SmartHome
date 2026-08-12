@@ -1,4 +1,9 @@
 package com.tw.medtech.pfa.web.dto;
 
-public class DeviceRequest {
-}
+public record DeviceRequest(
+        String name,
+        String type,
+        Double unit,
+        String status,
+        Long roomId
+) {}

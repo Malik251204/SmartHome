@@ -1,4 +1,5 @@
 package com.tw.medtech.pfa.web.dto;
 
-public class RoomRequest {
-}
+public record RoomRequest(
+        String name
+) {}

@@ -1,4 +1,6 @@
 package com.tw.medtech.pfa.web.dto;
 
-public class RoomSummaryDto {
-}
+public record RoomSummaryDto(
+        Long id,
+        String name
+) {}

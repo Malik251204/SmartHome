@@ -1,4 +1,12 @@
 package com.tw.medtech.pfa.web.dto;
 
-public class UserRequest {
-}
+import com.tw.medtech.pfa.model.enums.Role;
+
+import java.util.List;
+
+public record UserRequest(
+        String name,
+        String email,
+        int phoneNumber,
+        List<Role> roles
+) {}

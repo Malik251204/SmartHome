@@ -1,4 +1,10 @@
 package com.tw.medtech.pfa.web.dto;
 
-public class SensorRequest {
-}
+public record SensorRequest(
+        String name,
+        String type,
+        String unit,
+        String status,
+        String data,
+        Long roomId
+) {}
