@@ -36,6 +36,16 @@ export const seedUsers: User[] = [
     rooms: [],
     createdAt: new Date().toISOString(),
   },
+  {
+    id: uuid(),
+    name: 'Alice Smith',
+    email: 'alice@example.com',
+    phoneNumber: '+216 20 000 004',
+    role: 'admin',
+    roomIds: [],
+    rooms: [],
+    createdAt: new Date().toISOString(),
+  },
 ]
 
 // Mock-only login credentials. This map is deliberately separate from the
@@ -45,4 +55,5 @@ export const DEMO_CREDENTIALS: Record<string, string> = {
   'admin@homecontrol.io': 'admin123',
   'maintainer@homecontrol.io': 'maintainer123',
   'user@homecontrol.io': 'user123',
+  'alice@example.com': 'alice123',
 }

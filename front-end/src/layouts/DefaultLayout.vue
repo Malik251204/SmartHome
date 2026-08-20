@@ -52,7 +52,12 @@ function logout() {
       </nav>
 
       <div class="mt-6 border-t border-panel-soft pt-4">
-        <p class="truncate px-3 text-sm font-medium text-white">{{ auth.user?.name }}</p>
+        <RouterLink
+          :to="{ name: 'account' }"
+          class="block truncate px-3 text-sm font-medium text-white hover:underline"
+        >
+          {{ auth.user?.name }}
+        </RouterLink>
         <p class="px-3 text-xs text-mist/60">
           {{ auth.role ? USER_ROLE_LABELS[auth.role] : '' }}
         </p>

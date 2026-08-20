@@ -80,6 +80,19 @@ export const useAuthStore = defineStore('auth', {
       this.persist()
     },
 
+    async updateProfile(input: { name: string; email: string; phoneNumber: string }) {
+      if (!this.user) throw new Error('Not logged in')
+      const updated = await userService.update(this.user.id, {
+        name: input.name,
+        email: input.email,
+        phoneNumber: input.phoneNumber,
+        role: this.user.role,
+        roomIds: this.user.roomIds,
+      })
+      this.user = updated
+      this.persist()
+    },
+
     logout() {
       this.token = null
       this.user = null
