@@ -12,6 +12,7 @@ import IconPlus from '@/components/icons/IconPlus.vue'
 import IconGrid from '@/components/icons/IconGrid.vue'
 import IconTrash from '@/components/icons/IconTrash.vue'
 import IconPencil from '@/components/icons/IconPencil.vue'
+import IconSliders from '@/components/icons/IconSliders.vue'
 import RoomFormModal from '@/components/rooms/RoomFormModal.vue'
 import type { Room, RoomInput } from '@/types/room'
 
@@ -74,6 +75,10 @@ async function confirmDelete() {
 function openRoom(room: Room) {
   router.push({ name: 'room-detail', params: { id: room.id } })
 }
+
+function openPreferences(room: Room) {
+  router.push({ name: 'preferences', query: { roomId: room.id, roomName: room.name } })
+}
 </script>
 
 <template>
@@ -100,8 +105,8 @@ function openRoom(room: Room) {
     </div>
 
     <div
-      v-else-if="visibleRooms.length === 0"
-      class="rounded-2xl border border-dashed border-mist-dim bg-paper px-6 py-16 text-center"
+        v-else-if="visibleRooms.length === 0"
+        class="rounded-2xl border border-dashed border-mist-dim bg-paper px-6 py-16 text-center"
     >
       <p class="font-display text-sm font-medium text-ink">
         {{ canManage ? 'No rooms yet' : "You're not assigned to any room yet" }}
@@ -113,10 +118,10 @@ function openRoom(room: Room) {
 
     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <BaseCard
-        v-for="room in visibleRooms"
-        :key="room.id"
-        class="group cursor-pointer p-5 transition-shadow hover:shadow-md"
-        @click="openRoom(room)"
+          v-for="room in visibleRooms"
+          :key="room.id"
+          class="group cursor-pointer p-5 transition-shadow hover:shadow-md"
+          @click="openRoom(room)"
       >
         <div class="flex items-start justify-between">
           <div class="flex items-center gap-3">
@@ -133,18 +138,26 @@ function openRoom(room: Room) {
           </div>
           <div v-if="canManage" class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <button
-              type="button"
-              class="rounded-md p-1.5 text-ink-faint hover:bg-mist hover:text-ink"
-              aria-label="Rename room"
-              @click.stop="openEdit(room)"
+                type="button"
+                class="rounded-md p-1.5 text-ink-faint hover:bg-mist hover:text-ink"
+                aria-label="View room preferences"
+                @click.stop="openPreferences(room)"
+            >
+              <IconSliders class="h-4 w-4" />
+            </button>
+            <button
+                type="button"
+                class="rounded-md p-1.5 text-ink-faint hover:bg-mist hover:text-ink"
+                aria-label="Rename room"
+                @click.stop="openEdit(room)"
             >
               <IconPencil class="h-4 w-4" />
             </button>
             <button
-              type="button"
-              class="rounded-md p-1.5 text-ink-faint hover:bg-alert-tint hover:text-alert"
-              aria-label="Delete room"
-              @click.stop="pendingDelete = room"
+                type="button"
+                class="rounded-md p-1.5 text-ink-faint hover:bg-alert-tint hover:text-alert"
+                aria-label="Delete room"
+                @click.stop="pendingDelete = room"
             >
               <IconTrash class="h-4 w-4" />
             </button>
@@ -154,22 +167,22 @@ function openRoom(room: Room) {
     </div>
 
     <RoomFormModal
-      v-if="showForm"
-      :room="editingRoom"
-      :saving="saving"
-      :error="formError"
-      @submit="handleSubmit"
-      @close="showForm = false"
+        v-if="showForm"
+        :room="editingRoom"
+        :saving="saving"
+        :error="formError"
+        @submit="handleSubmit"
+        @close="showForm = false"
     />
 
     <ConfirmDialog
-      v-if="pendingDelete"
-      title="Delete room"
-      :message="`Delete &quot;${pendingDelete.name}&quot;? Its sensors and users won't be deleted — they'll just become unassigned.`"
-      :loading="deleting"
-      :error="deleteError"
-      @confirm="confirmDelete"
-      @cancel="pendingDelete = null"
+        v-if="pendingDelete"
+        title="Delete room"
+        :message="`Delete &quot;${pendingDelete.name}&quot;? Its sensors and users won't be deleted — they'll just become unassigned.`"
+        :loading="deleting"
+        :error="deleteError"
+        @confirm="confirmDelete"
+        @cancel="pendingDelete = null"
     />
   </div>
 </template>

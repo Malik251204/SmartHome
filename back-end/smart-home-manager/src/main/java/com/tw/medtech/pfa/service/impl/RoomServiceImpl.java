@@ -70,12 +70,15 @@ public class RoomServiceImpl implements RoomService {
     @Override
     @Transactional
     public void deleteRoom(Long id) {
-        if (!roomRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Room not found with id: " + id);
+        Room room = roomRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Room not found with id: " + id));
+
+        for (Long sensorId : room.getSensorIds()) {
+            sensorClient.deleteSensor(sensorId);
         }
+
         roomRepository.deleteById(id);
     }
-
     private void seedSensor(Room room, String type, String name, String data) {
         MockSensorDto toCreate = new MockSensorDto(null, name, type, "1.0", "ON", data);
         MockSensorDto created = sensorClient.createSensor(toCreate);
