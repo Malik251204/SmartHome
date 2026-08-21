@@ -12,9 +12,12 @@ import BaseSelect from '@/components/common/BaseSelect.vue'
 import RoleBadge from '@/components/users/RoleBadge.vue'
 import SensorCard from '@/components/sensors/SensorCard.vue'
 import DeviceCard from '@/components/rooms/DeviceCard.vue'
+import DeviceFormModal from '@/components/rooms/DeviceFormModal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import IconTrash from '@/components/icons/IconTrash.vue'
+import IconPlus from '@/components/icons/IconPlus.vue'
 import type { RoomDetail } from '@/types/room'
-import { DEVICE_STATUS_PAIR, type Device } from '@/types/device'
+import { DEVICE_STATUS_PAIR, type Device, type DeviceInput } from '@/types/device'
 import type { User } from '@/types/user'
 
 const route = useRoute()
@@ -62,6 +65,56 @@ async function toggleDevice(device: Device, on: boolean) {
     await deviceService.updateStatus(device.id, status)
     await loadRoom()
   })
+}
+
+// --- Devices: add / edit / remove — admin-only management, separate
+// from the toggle above which any signed-in user can do. ---------------
+
+const showDeviceForm = ref(false)
+const editingDevice = ref<Device | null>(null)
+const savingDevice = ref(false)
+const { error: deviceFormError, run: runDeviceForm } = useActionError()
+
+function openAddDevice() {
+  editingDevice.value = null
+  deviceFormError.value = null
+  showDeviceForm.value = true
+}
+
+function openEditDevice(device: Device) {
+  editingDevice.value = device
+  deviceFormError.value = null
+  showDeviceForm.value = true
+}
+
+async function handleDeviceSubmit(input: DeviceInput) {
+  savingDevice.value = true
+  await runDeviceForm(async () => {
+    if (editingDevice.value) {
+      await deviceService.update(editingDevice.value.id, input)
+    } else {
+      await deviceService.create(input)
+    }
+    await loadRoom()
+  })
+  if (!deviceFormError.value) showDeviceForm.value = false
+  savingDevice.value = false
+}
+
+const pendingDeleteDevice = ref<Device | null>(null)
+const deletingDevice = ref(false)
+const { error: deviceDeleteError, run: runDeviceDelete } = useActionError()
+
+async function confirmDeleteDevice() {
+  if (!pendingDeleteDevice.value) return
+  deletingDevice.value = true
+  const id = pendingDeleteDevice.value.id
+  await runDeviceDelete(async () => {
+    await deviceService.remove(id)
+    await loadRoom()
+  })
+  if (!deviceDeleteError.value) pendingDeleteDevice.value = null
+  deletingDevice.value = false
 }
 
 // --- Users: assign / remove — real, working endpoints ---------------------
@@ -114,7 +167,13 @@ async function removeUser(user: User) {
 
       <!-- Devices: controllable actuators -->
       <section class="space-y-4">
-        <h2 class="font-display text-base font-semibold text-ink">Devices</h2>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 class="font-display text-base font-semibold text-ink">Devices</h2>
+          <BaseButton v-if="canManage" size="sm" variant="subtle" @click="openAddDevice">
+            <IconPlus class="h-4 w-4" />
+            Add device
+          </BaseButton>
+        </div>
 
         <p v-if="deviceActionError" class="rounded-lg bg-alert-tint px-3 py-2 text-sm text-alert">
           {{ deviceActionError }}
@@ -126,7 +185,10 @@ async function removeUser(user: User) {
             v-for="device in room.devices"
             :key="device.id"
             :device="device"
+            :can-manage="canManage"
             @toggle="(on) => toggleDevice(device, on)"
+            @edit="openEditDevice(device)"
+            @delete="pendingDeleteDevice = device"
           />
         </div>
       </section>
@@ -191,5 +253,25 @@ async function removeUser(user: User) {
         </div>
       </section>
     </template>
+
+    <DeviceFormModal
+      v-if="showDeviceForm"
+      :device="editingDevice"
+      :room-id="roomId"
+      :saving="savingDevice"
+      :error="deviceFormError"
+      @submit="handleDeviceSubmit"
+      @close="showDeviceForm = false"
+    />
+
+    <ConfirmDialog
+      v-if="pendingDeleteDevice"
+      title="Delete device"
+      :message="`Remove &quot;${pendingDeleteDevice.name}&quot;? This can't be undone.`"
+      :loading="deletingDevice"
+      :error="deviceDeleteError"
+      @confirm="confirmDeleteDevice"
+      @cancel="pendingDeleteDevice = null"
+    />
   </div>
 </template>

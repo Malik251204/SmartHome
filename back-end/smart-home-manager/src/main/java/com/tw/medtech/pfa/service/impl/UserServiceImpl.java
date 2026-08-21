@@ -9,6 +9,7 @@ import com.tw.medtech.pfa.service.UserService;
 import com.tw.medtech.pfa.web.dto.UserDto;
 import com.tw.medtech.pfa.web.dto.UserRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,6 +44,7 @@ public class UserServiceImpl implements UserService {
         User user = User.builder()
                 .name(request.name())
                 .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
                 .phoneNumber(request.phoneNumber())
                 .roles(request.roles())
                 .build();
@@ -54,6 +57,9 @@ public class UserServiceImpl implements UserService {
         User user = findUserOrThrow(id);
         user.setName(request.name());
         user.setEmail(request.email());
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.password()));
+        }
         user.setPhoneNumber(request.phoneNumber());
         user.setRoles(request.roles());
         return toDto(userRepository.save(user));

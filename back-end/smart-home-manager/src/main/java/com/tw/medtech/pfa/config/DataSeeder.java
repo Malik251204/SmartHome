@@ -12,6 +12,7 @@ import com.tw.medtech.pfa.model.enums.Role;
 import com.tw.medtech.pfa.service.SensorSeeder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class DataSeeder implements CommandLineRunner {
     private final RoomRepository roomRepository;
     private final DeviceRepository deviceRepository;
     private final SensorSeeder sensorSeeder;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -53,11 +55,16 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedUsersRoomsAndDevices() {
+        // Passwords match the seeded-account credentials already
+        // documented for testing (see TEAM_HANDOFF.md).
         User alice = User.builder().name("Alice Smith").email("alice@example.com")
+                .password(passwordEncoder.encode("alice123"))
                 .phoneNumber(555123456).roles(List.of(Role.ADMIN)).build();
         User bob = User.builder().name("Bob Jones").email("bob@example.com")
+                .password(passwordEncoder.encode("bob123"))
                 .phoneNumber(555987654).roles(List.of(Role.USER)).build();
         User carol = User.builder().name("Carol Lee").email("carol@example.com")
+                .password(passwordEncoder.encode("carol123"))
                 .phoneNumber(555222333).roles(List.of(Role.USER)).build();
         userRepository.saveAll(List.of(alice, bob, carol));
 

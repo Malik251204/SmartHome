@@ -31,3 +31,15 @@ export interface Device {
   roomId: string | null
   roomName: string | null
 }
+
+// Used by admin device management (create/edit a room's hardware) — a
+// separate, occasional action from the ON/OFF/OPEN/CLOSED toggle every
+// signed-in user already has via updateStatus. No `unit` field: it's a
+// required backend column but isn't rendered or used anywhere in this UI
+// (deviceService fills in a fixed default when submitting).
+export type DeviceInput = {
+  name: string
+  type: DeviceType
+  status: DeviceStatus
+  roomId: string
+}

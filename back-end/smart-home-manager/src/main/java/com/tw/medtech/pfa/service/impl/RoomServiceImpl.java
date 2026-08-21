@@ -1,5 +1,6 @@
 package com.tw.medtech.pfa.service.impl;
 
+import com.tw.medtech.pfa.dao.connectors.SensorClient;
 import com.tw.medtech.pfa.dao.repository.RoomRepository;
 import com.tw.medtech.pfa.dao.repository.UserRepository;
 import com.tw.medtech.pfa.exception.ResourceNotFoundException;
@@ -23,6 +24,7 @@ public class RoomServiceImpl implements RoomService {
     private final UserRepository userRepository;
     private final RoomMapper roomMapper;
     private final SensorSeeder sensorSeeder;
+    private final SensorClient sensorClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -66,10 +68,14 @@ public class RoomServiceImpl implements RoomService {
         // Room.devices); the room_users join rows go too, since Room owns
         // that relationship. sensorIds are just an @ElementCollection, so
         // that table's rows go as well. The mock backend's sensors
-        // themselves are NOT deleted — SensorClient has no delete method,
-        // so they're left running, orphaned. Known limitation, not fixed
-        // here.
-        roomRepository.delete(findRoomOrThrow(id));
+        // themselves are deleted explicitly here first — they're a
+        // separate service with no cascade of its own, so without this
+        // they'd keep running, orphaned.
+        Room room = findRoomOrThrow(id);
+        for (Long sensorId : room.getSensorIds()) {
+            sensorClient.deleteSensor(sensorId);
+        }
+        roomRepository.delete(room);
     }
 
     @Override

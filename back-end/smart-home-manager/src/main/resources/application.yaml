@@ -7,3 +7,10 @@ spring:
     hibernate:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+# Local-dev default only — override via JWT_SECRET env var for anything
+# beyond local development. Needs to be at least 256 bits (32+ chars) for
+# HS256.
+jwt:
+  secret: ${JWT_SECRET:dev-only-secret-change-me-before-any-real-deployment-32chars}
+  expiration-ms: 864000000 # 10 days

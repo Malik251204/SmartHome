@@ -14,7 +14,7 @@ export interface User {
   role: UserRole
 }
 
-export type UserInput = Omit<User, 'id'>
+export type UserInput = Omit<User, 'id'> & { password?: string }
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   classic_user: 'Classic user',

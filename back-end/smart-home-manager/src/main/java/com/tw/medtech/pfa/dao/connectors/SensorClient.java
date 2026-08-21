@@ -49,4 +49,11 @@ public class SensorClient {
                 .retrieve()
                 .body(MockSensorDto.class);
     }
+
+    public void deleteSensor(Long id) {
+        restClient.delete()
+                .uri("/api/sensors/{id}", id)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }

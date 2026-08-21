@@ -25,6 +25,9 @@ function toBody(input: UserInput) {
   return {
     name: input.name,
     email: input.email,
+    // Required by the backend on create; left blank on update means
+    // "keep the existing password" (see UserServiceImpl.updateUser).
+    password: input.password ?? '',
     phoneNumber: input.phoneNumber,
     roles: roleToBackend(input.role),
   }

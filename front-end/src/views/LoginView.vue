@@ -17,9 +17,9 @@ const loading = ref(false)
 const error = ref('')
 
 const demoAccounts = [
-  { label: 'Admin', email: 'admin@homecontrol.io', password: 'admin123' },
-  { label: 'Maintainer', email: 'maintainer@homecontrol.io', password: 'maintainer123' },
-  { label: 'Classic user', email: 'user@homecontrol.io', password: 'user123' },
+  { label: 'Admin (Alice)', email: 'alice@example.com', password: 'alice123' },
+  { label: 'User (Bob)', email: 'bob@example.com', password: 'bob123' },
+  { label: 'User (Carol)', email: 'carol@example.com', password: 'carol123' },
 ]
 
 function fillDemo(account: (typeof demoAccounts)[number]) {
@@ -75,7 +75,7 @@ async function handleSubmit() {
 
         <div class="mt-6 border-t border-mist-dim pt-4">
           <p class="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">
-            Demo accounts (mock only)
+            Seeded test accounts
           </p>
           <div class="flex flex-wrap gap-2">
             <button

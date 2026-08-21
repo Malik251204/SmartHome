@@ -52,7 +52,12 @@ function logout() {
       </nav>
 
       <div class="mt-6 border-t border-panel-soft pt-4">
-        <p class="truncate px-3 text-sm font-medium text-white">{{ auth.user?.name }}</p>
+        <RouterLink
+          :to="{ name: 'account' }"
+          class="block truncate px-3 text-sm font-medium text-white hover:underline"
+        >
+          {{ auth.user?.name }}
+        </RouterLink>
         <p class="px-3 text-xs text-mist/60">
           {{ auth.role ? USER_ROLE_LABELS[auth.role] : '' }}
         </p>
@@ -68,15 +73,7 @@ function logout() {
     </aside>
 
     <main class="flex-1 px-6 py-8 lg:px-10">
-      <div class="mx-auto max-w-6xl space-y-4">
-        <p
-          v-if="!auth.hasRealIdentity"
-          class="rounded-lg bg-alert-tint px-4 py-3 text-sm text-alert"
-        >
-          You're signed in with a demo identity that isn't a real backend
-          account — Preferences and anything tied to your user id won't
-          work. Sign up with a new account to get a real one.
-        </p>
+      <div class="mx-auto max-w-6xl">
         <RouterView />
       </div>
     </main>

@@ -25,6 +25,12 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    // BCrypt hash, never the raw password. Excluded from every DTO —
+    // UserDto/UserRequest don't have this field, so it's never returned
+    // in an API response.
+    @Column(nullable = false)
+    private String password;
+
     @Column(name = "phone_number")
     private int phoneNumber;
 

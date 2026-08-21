@@ -19,6 +19,9 @@ const form = reactive({
   email: props.user?.email ?? '',
   phoneNumber: props.user ? String(props.user.phoneNumber) : '',
   role: props.user?.role ?? 'classic_user',
+  // Required on create; left blank on edit means "don't change it" (see
+  // UserServiceImpl.updateUser on the backend).
+  password: '',
 })
 
 const roleOptions = USER_ROLES.map((r) => ({ value: r, label: USER_ROLE_LABELS[r] }))
@@ -27,6 +30,7 @@ const errors = computed(() => ({
   name: form.name.trim().length === 0 ? 'Name is required' : '',
   email: /^\S+@\S+\.\S+$/.test(form.email) ? '' : 'Enter a valid email address',
   phoneNumber: /^\d+$/.test(form.phoneNumber.trim()) ? '' : 'Digits only, no spaces or symbols',
+  password: !isEditing && form.password.length < 6 ? 'At least 6 characters' : '',
 }))
 
 const canSubmit = computed(() => Object.values(errors.value).every((e) => e === ''))
@@ -38,6 +42,7 @@ function handleSubmit() {
     email: form.email.trim(),
     phoneNumber: Number(form.phoneNumber.trim()),
     role: form.role,
+    password: form.password.length > 0 ? form.password : undefined,
   })
 }
 </script>
@@ -62,6 +67,14 @@ function handleSubmit() {
         placeholder="21620000000"
       />
       <BaseSelect v-model="form.role" label="Role" :options="roleOptions" />
+      <BaseInput
+        v-model="form.password"
+        label="Password"
+        type="password"
+        :required="!isEditing"
+        :error="errors.password"
+        :placeholder="isEditing ? 'Leave blank to keep current password' : 'At least 6 characters'"
+      />
 
       <p class="text-xs text-ink-faint">
         Room assignment is managed from each room's own page, not here.

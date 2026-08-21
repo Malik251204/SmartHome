@@ -1,5 +1,6 @@
 import { api } from './api'
 import type { User } from '@/types/user'
+import { roleFromBackend } from '@/utils/roleMapping'
 
 export interface LoginPayload {
   email: string
@@ -13,23 +14,44 @@ export interface SignupPayload {
   password: string
 }
 
-export interface LoginResponse {
+interface RawAuthResponse {
+  token: string
+  user: { id: number; name: string; email: string; phoneNumber: number; roles: string[] }
+}
+
+export interface AuthResult {
   token: string
   user: User
 }
 
-// Everything here is what the real backend needs to replicate later:
-// POST /auth/login with { email, password }, returning { token, user }.
-// When Spring Security lands, only the response shape needs revisiting —
-// the auth store and route guards don't know or care that this is a mock.
+// CONFIRMED — real endpoints on backend/actual (permitAll, no token
+// needed to call these two).
 export const authService = {
-  login(payload: LoginPayload): Promise<LoginResponse> {
-    return api.post<LoginResponse>('/auth/login', payload).then((r) => r.data)
+  async login(payload: LoginPayload): Promise<AuthResult> {
+    const { data } = await api.post<RawAuthResponse>('/auth/login', payload)
+    return toResult(data)
   },
 
-  // Always creates a classic_user account server-side (see the mock handler);
-  // admin/maintainer accounts are provisioned via userService instead.
-  signup(payload: SignupPayload): Promise<LoginResponse> {
-    return api.post<LoginResponse>('/auth/signup', payload).then((r) => r.data)
+  async signup(payload: SignupPayload): Promise<AuthResult> {
+    const { data } = await api.post<RawAuthResponse>('/auth/register', {
+      name: payload.name,
+      email: payload.email,
+      password: payload.password,
+      phoneNumber: Number(payload.phoneNumber) || 0,
+    })
+    return toResult(data)
   },
+}
+
+function toResult(data: RawAuthResponse): AuthResult {
+  return {
+    token: data.token,
+    user: {
+      id: String(data.user.id),
+      name: data.user.name,
+      email: data.user.email,
+      phoneNumber: data.user.phoneNumber,
+      role: roleFromBackend(data.user.roles),
+    },
+  }
 }
