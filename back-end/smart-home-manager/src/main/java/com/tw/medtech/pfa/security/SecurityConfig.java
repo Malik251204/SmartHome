@@ -78,6 +78,13 @@ public class SecurityConfig {
                 // Users: admin-only, every method.
                 .requestMatchers("/api/users/**").hasAuthority("ADMIN")
 
+                // Agent: admin-only. It acts on devices on a user's
+                // behalf without that user initiating it, so triggering
+                // it (and reading what it's decided) is treated the same
+                // as any other system-level admin action, not something
+                // every signed-in user gets.
+                .requestMatchers("/api/agent/**").hasAuthority("ADMIN")
+
                 // Preferences: any signed-in user can read/write through
                 // this layer — ownership (only the author can edit; author
                 // or admin can delete) is enforced in

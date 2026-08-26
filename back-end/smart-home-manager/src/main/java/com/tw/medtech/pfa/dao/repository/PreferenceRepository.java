@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface PreferenceRepository extends JpaRepository<Preference, Long> {
     List<Preference> findByUserId(Long userId);
+    List<Preference> findByEnabledTrue();
 }

@@ -14,3 +14,25 @@ spring:
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-before-any-real-deployment-32chars}
   expiration-ms: 864000000 # 10 days
+
+# Points at a local Ollama instance (see docker-compose.yml). Model is a
+# config value on purpose — a 3B model fits comfortably in 4GB VRAM
+# (laptop-friendly); swap to a 14B model via OLLAMA_MODEL on a machine
+# that can run one, no code change needed.
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  model: ${OLLAMA_MODEL:qwen2.5:3b-instruct}
+  # Low on purpose — this is a "read structured data, output one
+  # coherent decision" task, not a creative one. Default sampling
+  # temperature was producing responses where the summary and the
+  # actual proposed action disagreed with each other.
+  temperature: ${OLLAMA_TEMPERATURE:0.2}
+
+agent:
+  # 1 hour by default. Set much shorter (e.g. 300000 = 5 minutes) locally
+  # for testing, or trigger POST /api/agent/run instead of waiting.
+  interval-ms: ${AGENT_INTERVAL_MS:3600000}
+  # Minimum time between two applied actions for the same (preference,
+  # room) pair — stops a sensor reading that's hovering near a decision
+  # boundary from flipping the same device back and forth every tick.
+  cooldown-minutes: ${AGENT_COOLDOWN_MINUTES:30}

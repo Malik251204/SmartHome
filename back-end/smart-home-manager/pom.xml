@@ -46,7 +46,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
-
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
 		<!-- JWT: issuing/parsing tokens for our own hand-rolled login/filter
 		     setup (see security/ package) — Spring Security itself doesn't
 		     include a JWT implementation. -->
