@@ -7,6 +7,28 @@ spring:
     hibernate:
       ddl-auto: update
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          # Model is a config value on purpose — a 3B model fits
+          # comfortably in 4GB VRAM (laptop-friendly); swap to a 14B
+          # model via OLLAMA_MODEL on a machine that can run one, no
+          # code change needed.
+          model: ${OLLAMA_MODEL:qwen2.5:3b-instruct}
+          # Low on purpose — this is a "read structured data, output one
+          # coherent decision" task, not a creative one. Default
+          # sampling temperature was producing responses where the
+          # summary and the actual proposed action disagreed with each
+          # other.
+          temperature: ${OLLAMA_TEMPERATURE:0.2}
+          # Kept even though ChatClient's structured-output converter
+          # also appends its own format instructions to the prompt —
+          # belt-and-suspenders, since this is what actually constrains
+          # Ollama's own token sampling to valid JSON syntax, not just
+          # an instruction the model can ignore.
+          format: json
 
 # Local-dev default only — override via JWT_SECRET env var for anything
 # beyond local development. Needs to be at least 256 bits (32+ chars) for
@@ -15,18 +37,11 @@ jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-before-any-real-deployment-32chars}
   expiration-ms: 864000000 # 10 days
 
-# Points at a local Ollama instance (see docker-compose.yml). Model is a
-# config value on purpose — a 3B model fits comfortably in 4GB VRAM
-# (laptop-friendly); swap to a 14B model via OLLAMA_MODEL on a machine
-# that can run one, no code change needed.
-ollama:
-  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-  model: ${OLLAMA_MODEL:qwen2.5:3b-instruct}
-  # Low on purpose — this is a "read structured data, output one
-  # coherent decision" task, not a creative one. Default sampling
-  # temperature was producing responses where the summary and the
-  # actual proposed action disagreed with each other.
-  temperature: ${OLLAMA_TEMPERATURE:0.2}
+# Points at smart-home-mock. "localhost" default is fine when everything
+# runs on the host directly; overridden to the Docker service name
+# (SENSOR_SERVICE_BASE_URL) when running via docker-compose.
+sensor:
+  base-url: ${SENSOR_SERVICE_BASE_URL:http://localhost:8081}
 
 agent:
   # 1 hour by default. Set much shorter (e.g. 300000 = 5 minutes) locally

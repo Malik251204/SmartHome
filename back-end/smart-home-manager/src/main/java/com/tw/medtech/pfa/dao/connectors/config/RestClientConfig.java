@@ -1,22 +1,22 @@
 package com.tw.medtech.pfa.dao.connectors.config;
 
-import com.tw.medtech.pfa.dao.connectors.OllamaClient;
 import com.tw.medtech.pfa.dao.connectors.SensorClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
-
-import java.time.Duration;
 
 @Configuration
 public class RestClientConfig {
 
+    // Was a hardcoded string until the docker-compose work — meant fine
+    // on one machine where "localhost" always means the same thing, but
+    // breaks the moment this and smart-home-mock become separate
+    // containers.
     @Bean
-    public RestClient sensorRestClient() {
+    public RestClient sensorRestClient(@Value("${sensor.base-url:http://localhost:8081}") String baseUrl) {
         return RestClient.builder()
-                .baseUrl("http://localhost:8081")
+                .baseUrl(baseUrl)
                 .build();
     }
 
@@ -25,26 +25,9 @@ public class RestClientConfig {
         return new SensorClient(sensorRestClient);
     }
 
-    @Bean
-    public RestClient ollamaRestClient(@Value("${ollama.base-url}") String baseUrl) {
-        // Local LLM inference (especially on a 4GB-VRAM card) can take
-        // well over the default timeout — read timeout set generously
-        // rather than tuned tight, since a slow answer is fine but a
-        // falsely-timed-out one just gets treated as a failed evaluation.
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(120));
-
-        return RestClient.builder()
-                .baseUrl(baseUrl)
-                .requestFactory(factory)
-                .build();
-    }
-
-    @Bean
-    public OllamaClient ollamaClient(RestClient ollamaRestClient,
-                                      @Value("${ollama.model}") String model,
-                                      @Value("${ollama.temperature}") double temperature) {
-        return new OllamaClient(ollamaRestClient, model, temperature);
-    }
+    // No Ollama beans here anymore — spring-ai-starter-model-ollama
+    // auto-configures its own OllamaChatModel and ChatClient.Builder
+    // directly from the spring.ai.ollama.* properties in
+    // application.yaml. See AiConfig for the one small thing we still
+    // wire ourselves (turning that builder into a ChatClient bean).
 }

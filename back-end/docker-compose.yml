@@ -33,6 +33,65 @@ services:
               count: 1
               capabilities: [gpu]
 
+  smart-home-mock:
+    build:
+      context: ./smart-home-mock
+    container_name: smart-home-mock
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  smart-home-manager:
+    build:
+      context: ./smart-home-manager
+    container_name: smart-home-manager
+    ports:
+      - "8080:8080"
+    environment:
+      # Docker service names, not localhost — see RestClientConfig.java
+      # and application.yaml for what each of these overrides.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mydb
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: mypassword
+      SENSOR_SERVICE_BASE_URL: http://smart-home-mock:8081
+      OLLAMA_BASE_URL: http://ollama:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # Hard requirement, not just ordering courtesy: DataSeeder calls
+      # out to smart-home-mock synchronously at startup with no retry —
+      # if mock isn't actually ready yet, the whole seed transaction
+      # fails and smart-home-manager won't start at all.
+      smart-home-mock:
+        condition: service_healthy
+      # Soft dependency only — the agent's first scheduled/triggered run
+      # happens well after startup, so smart-home-manager doesn't need
+      # Ollama to be fully ready this early, just started.
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  front-end:
+    build:
+      context: ../front-end
+    container_name: smart-home-frontend
+    ports:
+      # Vite's dev server listens on 5173 directly now — no nginx
+      # sitting in front translating port 80, so both sides of this
+      # mapping match what you'd see running it locally.
+      - "5173:5173"
+    environment:
+      # Overrides .env's default (http://localhost:8080) — this process
+      # runs inside the Docker network, so it needs the manager's
+      # service name to actually reach it. VITE_API_BASE_URL stays
+      # unchanged (still just "/api") since the browser-facing side of
+      # this never touches Docker networking at all.
+      VITE_API_PROXY_TARGET: http://smart-home-manager:8080
+    depends_on:
+      smart-home-manager:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   ollama_data:

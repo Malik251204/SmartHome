@@ -1,7 +1,6 @@
 package com.tw.medtech.pfa.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tw.medtech.pfa.dao.connectors.OllamaClient;
 import com.tw.medtech.pfa.dao.connectors.dto.SensorResponse;
 import com.tw.medtech.pfa.dao.repository.AgentDecisionRepository;
 import com.tw.medtech.pfa.dao.repository.PreferenceRepository;
@@ -18,9 +17,11 @@ import com.tw.medtech.pfa.web.dto.AgentDecisionResponse;
 import com.tw.medtech.pfa.web.dto.AgentRunSummary;
 import com.tw.medtech.pfa.web.dto.DeviceDto;
 import com.tw.medtech.pfa.web.dto.RoomDto;
+import com.tw.medtech.pfa.web.dto.SensorDetail;
 import com.tw.medtech.pfa.web.dto.mapper.RoomMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,7 +97,13 @@ public class AgentServiceImpl implements AgentService {
     private final RoomRepository roomRepository;
     private final RoomMapper roomMapper;
     private final DeviceService deviceService;
-    private final OllamaClient ollamaClient;
+    // Replaces the hand-rolled OllamaClient — auto-configured by
+    // spring-ai-starter-model-ollama against spring.ai.ollama.* (see
+    // application.yaml) and turned into a bean in AiConfig. The
+    // .entity(AgentDecisionResponse.class) call below handles both
+    // asking for and parsing structured JSON output, replacing what
+    // used to be a manual objectMapper.readValue() on a raw string.
+    private final ChatClient chatClient;
     private final AgentDecisionRepository agentDecisionRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -131,7 +138,7 @@ public class AgentServiceImpl implements AgentService {
                 } catch (Exception e) {
                     log.error("Agent evaluation failed for preference {} / room {}",
                             preference.getId(), room.getId(), e);
-                    decisions.add(toDto(persist(preference, room, null,
+                    decisions.add(toDto(persist(preference, room, null, null,
                             "Evaluation failed: " + e.getMessage(), List.of(), false)));
                 }
             }
@@ -151,7 +158,7 @@ public class AgentServiceImpl implements AgentService {
 
     private AgentDecision evaluate(Preference preference, Room room) throws Exception {
         if (isInCooldown(preference.getId(), room.getId())) {
-            return persist(preference, room, null,
+            return persist(preference, room, null, null,
                     "Skipped — a change was already applied for this preference/room within the last "
                             + cooldownMinutes + " minutes.",
                     List.of(), false);
@@ -159,17 +166,24 @@ public class AgentServiceImpl implements AgentService {
 
         RoomDto roomDto = roomMapper.mapToDto(room);
         String sensorSnapshot = objectMapper.writeValueAsString(roomDto.sensors());
+        List<SensorDetail> sensorDetails = buildSensorDetails(roomDto);
+        String sensorDetailsJson = objectMapper.writeValueAsString(sensorDetails);
         String userPrompt = buildUserPrompt(preference, roomDto);
 
-        String rawResponse;
         AgentDecisionResponse decision;
         try {
-            rawResponse = ollamaClient.chat(SYSTEM_PROMPT, userPrompt);
-            decision = objectMapper.readValue(rawResponse, AgentDecisionResponse.class);
+            decision = chatClient.prompt()
+                    .system(SYSTEM_PROMPT)
+                    .user(userPrompt)
+                    .call()
+                    .entity(AgentDecisionResponse.class);
+            if (decision == null) {
+                throw new IllegalStateException("Model returned no parseable response");
+            }
         } catch (Exception e) {
-            log.warn("Could not get/parse a decision from Ollama for preference {} / room {}: {}",
+            log.warn("Could not get/parse a decision from the model for preference {} / room {}: {}",
                     preference.getId(), room.getId(), e.getMessage());
-            return persist(preference, room, sensorSnapshot,
+            return persist(preference, room, sensorSnapshot, sensorDetailsJson,
                     "LLM call failed or returned unparseable output: " + e.getMessage(), List.of(), false);
         }
 
@@ -192,12 +206,16 @@ public class AgentServiceImpl implements AgentService {
                 continue; // no-op, not a real action
             }
 
+            String previousStatus = device.status();
             deviceService.updateStatus(device.id(), DeviceStatus.valueOf(action.newStatus()));
-            applied.add(action);
+            // Enriched with what we know server-side (device name, its
+            // real prior status) — never trust the model to report these
+            // itself, it was never asked to and has no reliable way to.
+            applied.add(new AgentAction(device.id(), device.name(), previousStatus, action.newStatus(), action.reasoning()));
         }
 
         String summary = decision.summary() != null ? decision.summary() : "(no summary provided)";
-        return persist(preference, room, sensorSnapshot, summary, applied, !applied.isEmpty());
+        return persist(preference, room, sensorSnapshot, sensorDetailsJson, summary, applied, !applied.isEmpty());
     }
 
     private boolean isInCooldown(Long preferenceId, Long roomId) {
@@ -238,18 +256,30 @@ public class AgentServiceImpl implements AgentService {
         return sb.toString();
     }
 
-    private String describeSensor(SensorResponse sensor) {
+    // Single source of truth for turning a raw sensor reading into
+    // something readable — used both to build the LLM's prompt text and
+    // to build the structured, persisted SensorDetail list.
+    private SensorDetail parseSensorDetail(SensorResponse sensor) {
         try {
             Map<String, Object> data = objectMapper.readValue(sensor.data(), Map.class);
             return switch (sensor.type()) {
-                case "LUX" -> "Light level: " + data.get("lux") + " lux";
-                case "TEMPERATURE" -> "Temperature: " + data.get("celsius") + " \u00b0C";
-                case "OCCUPANCY" -> "Occupancy: " + data.get("count") + " people";
-                default -> sensor.type() + ": " + sensor.data();
+                case "LUX" -> new SensorDetail("LUX", "Light level", data.get("lux") + " lux");
+                case "TEMPERATURE" -> new SensorDetail("TEMPERATURE", "Temperature", data.get("celsius") + " \u00b0C");
+                case "OCCUPANCY" -> new SensorDetail("OCCUPANCY", "Occupancy", data.get("count") + " people");
+                default -> new SensorDetail(sensor.type(), sensor.type(), sensor.data());
             };
         } catch (Exception e) {
-            return sensor.type() + ": (unreadable reading)";
+            return new SensorDetail(sensor.type(), sensor.type(), "(unreadable reading)");
         }
+    }
+
+    private String describeSensor(SensorResponse sensor) {
+        SensorDetail detail = parseSensorDetail(sensor);
+        return detail.label() + ": " + detail.value();
+    }
+
+    private List<SensorDetail> buildSensorDetails(RoomDto room) {
+        return room.sensors().stream().map(this::parseSensorDetail).collect(Collectors.toList());
     }
 
     private DeviceDto findDevice(RoomDto room, Long deviceId) {
@@ -263,7 +293,7 @@ public class AgentServiceImpl implements AgentService {
         return VALID_STATUSES_BY_TYPE.getOrDefault(deviceType, List.of()).contains(status);
     }
 
-    private AgentDecision persist(Preference preference, Room room, String sensorSnapshot,
+    private AgentDecision persist(Preference preference, Room room, String sensorSnapshot, String sensorDetailsJson,
                                    String summary, List<AgentAction> applied, boolean hasActions) {
         String actionsJson;
         try {
@@ -279,6 +309,7 @@ public class AgentServiceImpl implements AgentService {
                 .roomId(room.getId())
                 .roomName(room.getName())
                 .sensorSnapshot(sensorSnapshot)
+                .sensorDetailsJson(sensorDetailsJson)
                 .summary(summary)
                 .actionsJson(actionsJson)
                 .hasActions(hasActions)
@@ -290,8 +321,8 @@ public class AgentServiceImpl implements AgentService {
     private AgentDecisionDto toDto(AgentDecision d) {
         return new AgentDecisionDto(
                 d.getId(), d.getPreferenceId(), d.getPreferenceText(), d.getUserId(),
-                d.getRoomId(), d.getRoomName(), d.getSensorSnapshot(), d.getSummary(),
-                d.getActionsJson(), d.isHasActions(), d.getCreatedAt()
+                d.getRoomId(), d.getRoomName(), d.getSensorSnapshot(), d.getSensorDetailsJson(),
+                d.getSummary(), d.getActionsJson(), d.isHasActions(), d.getCreatedAt()
         );
     }
 }
