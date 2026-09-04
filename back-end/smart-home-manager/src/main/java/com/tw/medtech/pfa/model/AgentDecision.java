@@ -50,7 +50,11 @@ public class AgentDecision {
     private String roomName;
 
     // Raw JSON snapshot of the room's sensor readings at evaluation time —
-    // what the LLM actually saw.
+    // what the LLM actually saw. Kept for backward compatibility with
+    // existing rows; sensorDetailsJson (below) is the human-readable
+    // successor, added alongside rather than replacing this, since
+    // renaming a column under ddl-auto:update leaves the old one
+    // orphaned rather than actually renaming it.
     @Column(length = 2000)
     private String sensorSnapshot;
 
@@ -61,9 +65,17 @@ public class AgentDecision {
 
     // Raw JSON array of the actions actually applied — post-validation,
     // so this can be a subset of what the LLM proposed (invalid device
-    // ids / statuses are dropped before this is written).
+    // ids / statuses are dropped before this is written). Each entry now
+    // includes deviceName/previousStatus alongside newStatus/reasoning —
+    // see AgentAction.
     @Column(length = 2000)
     private String actionsJson;
+
+    // Structured, human-readable sensor readings at evaluation time —
+    // List<SensorDetail> serialized to JSON. The readable counterpart to
+    // sensorSnapshot's raw form.
+    @Column(length = 2000)
+    private String sensorDetailsJson;
 
     // Denormalized from actionsJson, so cooldown lookups (see
     // AgentDecisionRepository) don't need to parse JSON to filter.

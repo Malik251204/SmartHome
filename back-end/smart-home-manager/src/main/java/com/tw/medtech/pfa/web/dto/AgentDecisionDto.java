@@ -10,6 +10,7 @@ public record AgentDecisionDto(
         Long roomId,
         String roomName,
         String sensorSnapshot,
+        String sensorDetailsJson,
         String summary,
         String actionsJson,
         boolean hasActions,
