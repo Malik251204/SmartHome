@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { usePreferencesStore } from '@/stores/preferences'
 import { useAuthStore } from '@/stores/auth'
 import { roomService } from '@/services/roomService'
@@ -13,6 +14,8 @@ import type { PreferenceRule, PreferenceRuleInput } from '@/types/preference'
 
 const store = usePreferencesStore()
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 // Rooms the current user is assigned to — the room picker in the form
 // only offers these, not every room in the house. User doesn't own the
@@ -32,6 +35,22 @@ onMounted(async () => {
     // Room picker just falls back to "All my rooms" only — not fatal.
   }
 })
+
+// Room-scoped view: /preferences?roomId=..&roomName=.. (linked from the
+// room card on RoomsView.vue). Unlike the old device-based model, roomId
+// lives directly on PreferenceRule, so this is a straight filter — no
+// cross-referencing needed.
+const roomId = computed(() => (typeof route.query.roomId === 'string' ? route.query.roomId : null))
+const roomName = computed(() => (typeof route.query.roomName === 'string' ? route.query.roomName : null))
+
+const visibleRules = computed(() => {
+  if (!roomId.value) return store.items
+  return store.items.filter((r) => r.roomId === roomId.value)
+})
+
+function clearRoomFilter() {
+  router.replace({ name: 'preferences' })
+}
 
 const showForm = ref(false)
 const editingRule = ref<PreferenceRule | null>(null)
@@ -75,11 +94,22 @@ async function confirmDelete() {
   <div class="space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 class="font-display text-xl font-semibold text-ink">Preferences</h1>
+        <h1 class="font-display text-xl font-semibold text-ink">
+          Preferences
+          <span v-if="roomName" class="text-ink-soft"> — {{ roomName }}</span>
+        </h1>
         <p class="max-w-xl text-sm text-ink-soft">
           Write how you like things, in your own words. Leave "Applies to" as
           "All my rooms" unless this is about one room specifically.
         </p>
+        <button
+          v-if="roomId"
+          type="button"
+          class="mt-1 text-xs font-medium text-circuit-dark hover:underline"
+          @click="clearRoomFilter"
+        >
+          Clear room filter — show all
+        </button>
       </div>
       <BaseButton @click="openCreate">
         <IconPlus class="h-4 w-4" />
@@ -94,16 +124,18 @@ async function confirmDelete() {
     <div v-if="store.loading" class="h-48 animate-pulse rounded-2xl bg-mist-dim" />
 
     <div
-      v-else-if="store.items.length === 0"
+      v-else-if="visibleRules.length === 0"
       class="rounded-2xl border border-dashed border-mist-dim bg-paper px-6 py-16 text-center"
     >
-      <p class="font-display text-sm font-medium text-ink">No preferences yet</p>
+      <p class="font-display text-sm font-medium text-ink">
+        {{ roomName ? `No preferences for ${roomName} yet` : 'No preferences yet' }}
+      </p>
       <p class="mt-1 text-sm text-ink-soft">
         Add one to describe how you like your rooms — messy or specific, both are fine.
       </p>
     </div>
 
-    <PreferenceTable v-else :rules="store.items" @edit="openEdit" @delete="pendingDelete = $event" />
+    <PreferenceTable v-else :rules="visibleRules" @edit="openEdit" @delete="pendingDelete = $event" />
 
     <PreferenceFormModal
       v-if="showForm && auth.user"

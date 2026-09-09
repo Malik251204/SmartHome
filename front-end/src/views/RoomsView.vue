@@ -13,6 +13,7 @@ import IconPlus from '@/components/icons/IconPlus.vue'
 import IconGrid from '@/components/icons/IconGrid.vue'
 import IconTrash from '@/components/icons/IconTrash.vue'
 import IconPencil from '@/components/icons/IconPencil.vue'
+import IconSliders from '@/components/icons/IconSliders.vue'
 import RoomFormModal from '@/components/rooms/RoomFormModal.vue'
 import type { Room, RoomInput } from '@/types/room'
 
@@ -90,6 +91,11 @@ async function confirmDelete() {
 function openRoom(room: Room) {
   router.push({ name: 'room-detail', params: { id: room.id } })
 }
+
+// Jump straight to this room's preferences instead of the full flat list.
+function openPreferences(room: Room) {
+  router.push({ name: 'preferences', query: { roomId: room.id, roomName: room.name } })
+}
 </script>
 
 <template>
@@ -148,6 +154,14 @@ function openRoom(room: Room) {
             </div>
           </div>
           <div v-if="canManage" class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              type="button"
+              class="rounded-md p-1.5 text-ink-faint hover:bg-mist hover:text-ink"
+              aria-label="View room preferences"
+              @click.stop="openPreferences(room)"
+            >
+              <IconSliders class="h-4 w-4" />
+            </button>
             <button
               type="button"
               class="rounded-md p-1.5 text-ink-faint hover:bg-mist hover:text-ink"
