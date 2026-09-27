@@ -83,7 +83,7 @@ public class DataSeeder implements CommandLineRunner {
         Device bedroomBulb = Device.builder()
                 .name("Bedroom Bulb").unit(1.0).type(DeviceType.LIGHT_BULB).status(DeviceStatus.OFF).room(bedroom).build();
         Device kitchenCurtains = Device.builder()
-                .name("Kitchen Curtains").unit(1.0).type(DeviceType.CURTAINS).status(DeviceStatus.ON).room(kitchen).build();
+                .name("Kitchen Curtains").unit(1.0).type(DeviceType.CURTAINS).status(DeviceStatus.OPEN).room(kitchen).build();
         deviceRepository.saveAll(List.of(livingRoomAc, bedroomBulb, kitchenCurtains));
     }
 }

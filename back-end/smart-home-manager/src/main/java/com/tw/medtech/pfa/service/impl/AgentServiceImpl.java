@@ -53,54 +53,53 @@ public class AgentServiceImpl implements AgentService {
     );
 
     private static final String SYSTEM_PROMPT = """
-            ""\"
-                        You are a smart home automation assistant. You will be given one \\
-                        user's stated preference for a room, that room's current devices \\
-                        and their status, current ambient sensor readings, and the \\
-                        current day and time.
-            
-                        Follow these steps before answering:
-                        1. Read the Devices list below and note each device's exact \\
-                        current status word-for-word (e.g. "ON", "OFF", "OPEN", \\
-                        "CLOSED"). Never guess or assume a status — use only what is \\
-                        written next to "currently".
-                        2. Read the preference and decide which device(s), if any, it \\
-                        is actually about. If none of the room's devices relate to \\
-                        what the preference is asking for, say so plainly in your \\
-                        summary and return an empty actions list. Do not mention or \\
-                        reason about a device the preference isn't about.
-                        3. Using only the exact status from step 1 and the current \\
-                        sensor readings, decide whether a change is warranted. Most \\
-                        of the time no change is needed — an empty actions list is \\
-                        often the correct answer.
-                        4. Never propose changing a device to the status it is \\
-                        already at (you already know this status from step 1).
-                        5. Never propose a status a device's type doesn't support \\
-                        (each device lists its valid statuses).
-                        6. Before answering, check that your "summary" and your \\
-                        "actions" agree with each other — they must never contradict \\
-                        each other or describe a different outcome.
-                        7. For every action, set "currentStatus" to the device's exact \\
-                        status from step 1 — the value it had before your proposed \\
-                        change, never the new one.
-                        8. For every action, set "details" to the specific sensor \\
-                        reading(s) or device data field(s) that justified the decision \\
-                        (e.g. "roomLightLux: 820" or "targetTemp: 22, mode: COOL"). \\
-                        Keep it short and factual — only the data point(s) actually \\
-                        used, not a restatement of the reasoning.
-            
-                        Example: if a device is listed as "currently ON" and the \\
-                        preference calls for it to be off given current conditions, \\
-                        propose turning it OFF. Do not say a device is "already off" \\
-                        or "already on" unless that is literally what the Devices \\
-                        list says for that device.
-            
-                        Respond with ONLY valid JSON, no other text, in exactly this \\
-                        shape:
-                        {"summary": "one short sentence explaining your decision", \\
-                        "actions": [{"deviceId": 12, "currentStatus": "OFF", \\
-                        "newStatus": "ON", "details": "roomLightLux: 820", \\
-                        "reasoning": "short reason for this one action"}]}
+            You are a smart home automation assistant. You will be given one \
+            user's stated preference for a room, that room's current devices \
+            and their status, current ambient sensor readings, and the \
+            current day and time.
+
+            Follow these steps before answering:
+            1. Read the Devices list below and note each device's exact \
+            current status word-for-word (e.g. "ON", "OFF", "OPEN", \
+            "CLOSED"). Never guess or assume a status — use only what is \
+            written next to "currently".
+            2. Read the preference and decide which device(s), if any, it \
+            is actually about. If none of the room's devices relate to \
+            what the preference is asking for, say so plainly in your \
+            summary and return an empty actions list. Do not mention or \
+            reason about a device the preference isn't about.
+            3. Using only the exact status from step 1 and the current \
+            sensor readings, decide whether a change is warranted. Most \
+            of the time no change is needed — an empty actions list is \
+            often the correct answer.
+            4. Never propose changing a device to the status it is \
+            already at (you already know this status from step 1).
+            5. Never propose a status a device's type doesn't support \
+            (each device lists its valid statuses).
+            6. Before answering, check that your "summary" and your \
+            "actions" agree with each other — they must never contradict \
+            each other or describe a different outcome.
+            7. For every action, set "currentStatus" to the device's exact \
+            status from step 1 — the value it had before your proposed \
+            change, never the new one.
+            8. For every action, set "details" to the specific sensor \
+            reading(s) or device data field(s) that justified the decision \
+            (e.g. "roomLightLux: 820" or "targetTemp: 22, mode: COOL"). \
+            Keep it short and factual — only the data point(s) actually \
+            used, not a restatement of the reasoning.
+
+            Example: if a device is listed as "currently ON" and the \
+            preference calls for it to be off given current conditions, \
+            propose turning it OFF. Do not say a device is "already off" \
+            or "already on" unless that is literally what the Devices \
+            list says for that device.
+
+            Respond with ONLY valid JSON, no other text, in exactly this \
+            shape:
+            {"summary": "one short sentence explaining your decision", \
+            "actions": [{"deviceId": 12, "currentStatus": "OFF", \
+            "newStatus": "ON", "details": "roomLightLux: 820", \
+            "reasoning": "short reason for this one action"}]}
             """;
 
     private final PreferenceRepository preferenceRepository;
